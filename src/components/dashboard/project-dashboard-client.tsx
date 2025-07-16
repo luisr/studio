@@ -6,7 +6,7 @@ import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, 
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList, Trello, Calendar } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList, Trello, Calendar, Network } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
@@ -601,6 +601,17 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setCsvHeaders([]);
   };
 
+  const handleCriticalPathAnalyzed = (criticalPathIds: string[]) => {
+    setProject(prevProject => ({
+      ...prevProject,
+      criticalPath: criticalPathIds,
+    }));
+    toast({
+      title: 'Caminho Crítico Analisado',
+      description: 'As tarefas críticas foram destacadas no Gráfico de Gantt.',
+    });
+  };
+
   const formatCurrency = useCallback((value: number) => {
     if(!isClient) return 'R$ ...';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -760,7 +771,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
               <ChartsTab project={project} />
             </TabsContent>
             <TabsContent value="ai_analysis">
-              <AiAnalysisTab project={project} />
+              <AiAnalysisTab project={project} onCriticalPathAnalyzed={handleCriticalPathAnalyzed} />
             </TabsContent>
           </Tabs>
         </div>

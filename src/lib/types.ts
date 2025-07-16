@@ -123,4 +123,5 @@ export interface Project {
   };
   baselineSavedAt?: string;
   configuration: ProjectConfiguration;
+  criticalPath?: string[];
 }

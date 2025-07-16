@@ -307,6 +307,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                      }
                   }
 
+                  const isCritical = project.criticalPath?.includes(task.id);
 
                   return (
                     <React.Fragment key={task.id}>
@@ -341,7 +342,10 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                             <Tooltip>
                               <TooltipTrigger asChild>
                                  <div
-                                  className={cn("absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2")}
+                                  className={cn(
+                                    "absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2",
+                                    isCritical && "ring-2 ring-destructive critical-path-pulse"
+                                  )}
                                   style={{
                                       backgroundColor: statusColorMap[task.status] || '#808080',
                                       left: `calc(${barStart / totalColumns * 100}% + 2px)`,
@@ -355,6 +359,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                                 <p>Status: {task.status}</p>
                                 <p>Início: {format(new Date(task.plannedStartDate), 'dd/MM/yyyy')}</p>
                                 <p>Fim: {format(new Date(task.plannedEndDate), 'dd/MM/yyyy')}</p>
+                                {isCritical && <p className='text-destructive font-semibold'>Tarefa Crítica</p>}
                                 {baselineStart && baselineEnd && (
                                   <>
                                     <hr className='my-2' />

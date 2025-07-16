@@ -2,17 +2,19 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { Project } from "@/lib/types";
+import type { Project, Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { summarizeProjectStatus } from "@/ai/flows/summarize-project-status";
 import { predictProjectRisks } from "@/ai/flows/predict-project-risks";
 import { generateLessonsLearned } from "@/ai/flows/generate-lessons-learned";
-import { Loader2, Sparkles, AlertTriangle, GraduationCap } from "lucide-react";
+import { analyzeCriticalPath } from "@/ai/flows/analyze-critical-path";
+import { Loader2, Sparkles, AlertTriangle, GraduationCap, Network } from "lucide-react";
 import { ViewActions } from "./view-actions";
 
 interface AiAnalysisTabProps {
   project: Project;
+  onCriticalPathAnalyzed: (criticalPathIds: string[]) => void;
 }
 
 const LoadingState = () => (
@@ -29,7 +31,7 @@ const ResultDisplay = ({ title, children }: { title: string, children: React.Rea
     </div>
 );
 
-export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
+export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTabProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [results, setResults] = useState<{ [key: string]: any }>({});
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,23 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
       setLoading(null);
     }
   };
+
+  const handleAnalyzeCriticalPath = async () => {
+    setLoading("criticalPath");
+    setError(null);
+    try {
+      const result = await analyzeCriticalPath({ tasks: project.tasks });
+      setResults(prev => ({ ...prev, criticalPath: result }));
+      onCriticalPathAnalyzed(result.criticalPath);
+    } catch (e) {
+      setError("Falha ao analisar o caminho crítico. Tente novamente.");
+      console.error(e);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const getTaskName = (taskId: string) => project.tasks.find(t => t.id === taskId)?.name || 'Tarefa não encontrada';
 
   return (
     <Card>
@@ -173,6 +192,35 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
               </ResultDisplay>
             )}
           </div>
+          
+           {/* Análise de Caminho Crítico */}
+          <div className="space-y-4">
+              <div className="flex items-center gap-4 no-print">
+                  <div className="flex-shrink-0 bg-orange-500/10 text-orange-600 rounded-full p-3">
+                      <Network className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="text-lg font-semibold">Análise de Caminho Crítico</h3>
+                      <p className="text-sm text-muted-foreground">Identifique a sequência de tarefas que impacta diretamente o prazo final do projeto.</p>
+                  </div>
+                   <Button onClick={handleAnalyzeCriticalPath} disabled={loading !== null} className="ml-auto bg-orange-500 hover:bg-orange-600 text-white">
+                      {loading === "criticalPath" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Network className="mr-2 h-4 w-4" />}
+                      Analisar Caminho Crítico
+                  </Button>
+              </div>
+            {loading === "criticalPath" ? <LoadingState /> : results.criticalPath && (
+               <ResultDisplay title="Análise de Caminho Crítico da IA">
+                  <p><strong>Explicação:</strong> {results.criticalPath.explanation}</p>
+                  <p><strong>Caminho Crítico (sequência de tarefas):</strong></p>
+                  <ol className="list-decimal list-inside">
+                    {results.criticalPath.criticalPath.map((taskId: string) => (
+                      <li key={taskId}>{getTaskName(taskId)}</li>
+                    ))}
+                  </ol>
+              </ResultDisplay>
+            )}
+          </div>
+
         </div>
       </CardContent>
     </Card>
