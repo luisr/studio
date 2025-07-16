@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Task, User, Project, Attachment } from "@/lib/types";
+import type { Task, User, Project, Attachment, ChangeLog } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,15 +32,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, Check, ChevronsUpDown, Paperclip, X } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Paperclip, X, History, UserCircle, VenetianMask } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays, addDays, formatDistanceToNow } from "date-fns";
+import { ptBR } from 'date-fns/locale';
 import { Switch } from "../ui/switch";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { Textarea } from "../ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { Badge } from "../ui/badge";
 
 type EffortUnit = 'hours' | 'days' | 'weeks' | 'months';
 
@@ -94,7 +99,7 @@ type TaskFormValues = z.infer<typeof taskSchema>;
 interface TaskFormProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSave: (data: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>) => void;
+  onSave: (data: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>, justification: string) => void;
   task: Task | null;
   project: Project;
 }
@@ -120,6 +125,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   const { team: users, tasks: allTasks, configuration } = project;
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [justification, setJustification] = useState("");
+  const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
+  const [formDataCache, setFormDataCache] = useState<TaskFormValues | null>(null);
   
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -214,7 +222,36 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   }, [form, task]);
 
 
-  const onSubmit = (data: TaskFormValues) => {
+ const onSubmit = (data: TaskFormValues) => {
+    // If we're editing an existing task, check if critical fields have changed.
+    if (task) {
+        const criticalFields: (keyof TaskFormValues)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours'];
+        const hasCriticalChanges = criticalFields.some(field => {
+            const formValue = JSON.stringify(data[field]);
+            // Re-create the initial value from `task` for comparison
+            let taskValue;
+            if (field === 'plannedStartDate' || field === 'plannedEndDate') {
+                taskValue = JSON.stringify(new Date(task[field] as string));
+            } else if (field === 'plannedHours') {
+                 taskValue = JSON.stringify(task.plannedHours);
+            } else {
+                 taskValue = JSON.stringify(task[field as keyof Task]);
+            }
+            return formValue !== taskValue;
+        });
+
+        if (hasCriticalChanges) {
+            setFormDataCache(data); // Cache the form data
+            setIsJustificationDialogOpen(true); // Open the justification dialog
+            return; // Stop the submission here
+        }
+    }
+    
+    // Proceed with saving if it's a new task or no critical changes were made.
+    saveTask(data, "Criação da tarefa");
+  };
+
+  const saveTask = (data: TaskFormValues, justification: string) => {
     const selectedUser = users.find(u => u.id === data.assignee);
     if (!selectedUser) return;
 
@@ -236,7 +273,19 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
         dependencies: data.dependencies || [],
         customFields: data.customFields || {},
         attachments: data.attachments || [],
-    });
+    }, justification);
+  };
+
+  const handleJustificationSubmit = () => {
+    if (formDataCache && justification.trim()) {
+        saveTask(formDataCache, justification);
+    } else {
+        toast({
+            title: "Justificativa Necessária",
+            description: "Por favor, forneça uma justificativa para as alterações.",
+            variant: "destructive"
+        });
+    }
   };
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -281,10 +330,22 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
     form.setValue('attachments', currentAttachments.filter(att => att.id !== id));
   };
 
+  const formatChangeLogValue = (field: string, value: string): string => {
+      if (field.toLowerCase().includes('date')) {
+          try {
+              return format(new Date(value), 'dd/MM/yyyy');
+          } catch {
+              return value;
+          }
+      }
+      return value;
+  };
+
   const possibleParents = allTasks.filter(t => t.id !== task?.id);
   const possibleDependencies = allTasks.filter(t => t.id !== task?.id && (!task || !task.parentId || t.id !== task.parentId));
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
         <DialogHeader>
@@ -325,8 +386,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                          {users.map((member) => (
+                            <SelectItem key={member.user.id} value={member.user.id}>{member.user.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -725,6 +786,44 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                   </div>
                 </div>
               )}
+
+              {task && (
+                <div>
+                  <Separator className="my-6" />
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="link" className="p-0 text-muted-foreground">
+                        <History className="mr-2 h-4 w-4" />
+                        Ver Histórico de Alterações
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-4 space-y-4 max-h-48 overflow-y-auto pr-2">
+                        {task.changeHistory && task.changeHistory.length > 0 ? (
+                           [...task.changeHistory].reverse().map((log: ChangeLog) => (
+                              <div key={log.timestamp} className="text-xs p-3 rounded-md bg-muted/50">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="font-semibold flex items-center gap-1"><UserCircle className="h-3 w-3" />{log.user}</span>
+                                    <span className="text-muted-foreground">{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true, locale: ptBR })}</span>
+                                </div>
+                                <p>
+                                    Alterou <Badge variant="secondary">{log.fieldChanged}</Badge> de <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.oldValue)}</Badge> para <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.newValue)}</Badge>.
+                                </p>
+                                <p className="mt-1 italic text-muted-foreground">
+                                    <strong>Justificativa:</strong> {log.justification}
+                                </p>
+                              </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Nenhuma alteração registrada.</p>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              )}
+
+
             </div>
            </ScrollArea>
 
@@ -738,5 +837,26 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
         </Form>
       </DialogContent>
     </Dialog>
+    
+    <AlertDialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Justificar Alteração</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Você fez alterações importantes na tarefa. Por favor, forneça uma justificativa para registrar no histórico.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Textarea 
+                placeholder="Ex: Replanejamento devido a mudança no escopo solicitado pelo cliente."
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+            />
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setJustification('')}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleJustificationSubmit}>Salvar Alterações</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

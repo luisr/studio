@@ -216,7 +216,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
   };
   
-  const handleSaveTask = (taskData: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>) => {
+  const handleSaveTask = (taskData: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>, justification: string) => {
     let flatTasks = [...project.tasks];
     let updatedTaskData = { ...taskData };
 
@@ -238,28 +238,25 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         }
     }
 
-
     let newTasks: Task[];
     if (editingTask) {
         newTasks = flatTasks.map(t => {
             if (t.id === editingTask.id) {
                 const newChangeHistory = [...(t.changeHistory || [])];
+                const originalTask = t;
 
-                (Object.keys(updatedTaskData) as Array<keyof typeof updatedTaskData>).forEach(key => {
-                    const typedKey = key as keyof Task;
-                     if (key === 'attachments') return; // Skip attachment comparison here
-                    // Compare string representations to handle different types (dates, objects etc.)
-                    const oldValueStr = JSON.stringify(t[typedKey]);
-                    const newValueStr = JSON.stringify(updatedTaskData[typedKey]);
+                // Define which fields are critical for justification
+                const criticalFields: (keyof Task)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours'];
 
-                    if (oldValueStr !== newValueStr) {
+                criticalFields.forEach(key => {
+                     if (JSON.stringify(originalTask[key]) !== JSON.stringify(updatedTaskData[key])) {
                         newChangeHistory.push({
                             fieldChanged: key,
-                            oldValue: String(t[typedKey]),
-                            newValue: String(updatedTaskData[typedKey]),
-                            user: 'Usuário', // Placeholder for actual user
+                            oldValue: String(originalTask[key]),
+                            newValue: String(updatedTaskData[key]),
+                            user: currentUser?.name || 'Sistema',
                             timestamp: new Date().toISOString(),
-                            justification: 'Atualização via formulário' // Placeholder for justification
+                            justification: justification,
                         });
                     }
                 });
@@ -294,7 +291,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     fieldChanged: 'status',
                     oldValue: oldStatus,
                     newValue: newStatus,
-                    user: 'Usuário', // Placeholder for actual user
+                    user: currentUser?.name || 'Sistema',
                     timestamp: new Date().toISOString(),
                     justification: 'Status alterado no quadro Kanban'
                 }];
@@ -306,7 +303,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
         return { ...prevProject, tasks: updatedTasks };
     });
-  }, []);
+  }, [currentUser]);
   
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
