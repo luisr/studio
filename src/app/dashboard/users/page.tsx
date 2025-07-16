@@ -31,7 +31,7 @@ export default function UsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Função</TableHead>
+                <TableHead>Função Global</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
@@ -45,7 +45,10 @@ export default function UsersPage() {
                         <AvatarImage src={user.avatar} alt={user.name} />
                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">{user.name}</span>
+                      <div>
+                        <span className="font-medium">{user.name}</span>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProjectForm } from '@/components/dashboard/project-form';
-import type { Project } from '@/lib/types';
+import type { Project, TeamMember } from '@/lib/types';
 import { defaultConfiguration } from '@/lib/data';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function ProjectsListPage() {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
@@ -48,8 +49,11 @@ export default function ProjectsListPage() {
                 <div>
                     <h4 className="text-sm font-semibold mb-2">Equipe</h4>
                     <div className="flex -space-x-2 overflow-hidden">
-                        {project.team.map(member => (
-                            <img key={member.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-background" src={member.avatar} alt={member.name} />
+                        {project.team.slice(0, 5).map((member: TeamMember) => (
+                            <Avatar key={member.user.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-background">
+                              <AvatarImage src={member.user.avatar} alt={member.user.name} />
+                              <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
                         ))}
                          {project.team.length > 5 && (
                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted ring-2 ring-background">

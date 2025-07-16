@@ -1,4 +1,4 @@
-import type { Project, User, ProjectConfiguration } from './types';
+import type { Project, User, ProjectConfiguration, TeamMember } from './types';
 
 export const users: User[] = [
   { id: 'user-1', name: 'Alice', avatar: '/avatars/01.png', email: 'alice@example.com', phone: '111-222-3333', role: 'Admin' },
@@ -37,7 +37,12 @@ export const projects: Project[] = [
     name: 'Sistema de E-commerce "Nexus"',
     description: 'Desenvolvimento de uma nova plataforma de e-commerce com foco em experiência do usuário e performance.',
     manager: users[0],
-    team: users,
+    team: [
+      { user: users[0], role: 'Manager' },
+      { user: users[1], role: 'Editor' },
+      { user: users[2], role: 'Editor' },
+      { user: users[3], role: 'Viewer' },
+    ],
     plannedStartDate: '2024-01-01',
     plannedEndDate: '2024-06-30',
     actualStartDate: '2024-01-05',

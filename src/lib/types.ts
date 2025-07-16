@@ -7,6 +7,13 @@ export interface ChangeLog {
   justification: string;
 }
 
+export type ProjectRole = 'Manager' | 'Editor' | 'Viewer';
+
+export interface TeamMember {
+  user: User;
+  role: ProjectRole;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -103,7 +110,7 @@ export interface Project {
   name:string;
   description: string;
   manager: User;
-  team: User[];
+  team: TeamMember[];
   plannedStartDate: string;
   plannedEndDate: string;
   actualStartDate?: string;

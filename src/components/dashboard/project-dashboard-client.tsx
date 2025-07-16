@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment, ProjectRole } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -114,6 +114,25 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const allAttachments = useMemo(() => {
     return project.tasks.flatMap(task => task.attachments || []);
   }, [project.tasks]);
+
+  // --- Start of Permissions Logic ---
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole | null>(null);
+
+  useEffect(() => {
+    // In a real app, you would get the current user from an auth context.
+    // For now, we'll simulate it by picking the first user from the project's team.
+    const user = project.team[0]?.user;
+    if (user) {
+      setCurrentUser(user);
+      const member = project.team.find(m => m.user.id === user.id);
+      setCurrentUserRole(member ? member.role : null);
+    }
+  }, [project.team]);
+
+  const canEditProject = currentUserRole === 'Manager';
+  const canEditTasks = currentUserRole === 'Manager' || currentUserRole === 'Editor';
+  // --- End of Permissions Logic ---
 
   useEffect(() => {
     setIsClient(true);
@@ -464,8 +483,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleImportConfirm = (mapping: Mapping) => {
-    const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
-    const usersByNameMap = new Map<string, User>(project.team.map(u => [u.name.toLowerCase(), u]));
+    const usersInProject = project.team.map(tm => tm.user);
+    const usersMap = new Map<string, User>(usersInProject.map(u => [u.id, u]));
+    const usersByNameMap = new Map<string, User>(usersInProject.map(u => [u.name.toLowerCase(), u]));
 
     const newCustomFieldDefs: CustomFieldDefinition[] = [...(project.configuration.customFieldDefinitions || [])];
     const newCustomFieldMap = new Map<string, string>(); // csvHeader -> customFieldId
@@ -549,7 +569,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         // Add default values for required fields if they are missing
         if (!task.id) task.id = `task-${Date.now()}-${Math.random()}`;
         if (!task.name) task.name = "Tarefa importada sem nome";
-        if (!task.assignee) task.assignee = project.team[0];
+        if (!task.assignee) task.assignee = project.team[0].user;
         if (!task.status) task.status = project.configuration.statuses.find(s => s.isDefault)?.name || 'A Fazer';
         if (!task.plannedStartDate) task.plannedStartDate = new Date().toISOString();
         if (!task.plannedEndDate) task.plannedEndDate = new Date().toISOString();
@@ -658,6 +678,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       <div className="flex flex-col h-full bg-background">
         <ProjectHeader 
           project={project} 
+          canEditProject={canEditProject}
+          canEditTasks={canEditTasks}
           onNewTaskClick={handleCreateTask}
           onEditProjectClick={() => setIsProjectFormOpen(true)}
           onImport={handleFileSelect}
@@ -717,6 +739,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     onEditTask={handleEditTask}
                     onDeleteTask={handleDeleteTask}
                     onBulkAction={handleBulkAction}
+                    canEditTasks={canEditTasks}
                   />
                 </CardContent>
               </Card>

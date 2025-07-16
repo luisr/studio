@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 interface TasksTableProps {
   tasks: Task[];
   project: Project;
+  canEditTasks: boolean;
   onTasksChange: (tasks: Task[]) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
@@ -67,7 +68,7 @@ type ColumnVisibility = {
   [key: string]: boolean;
 };
 
-export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask, onBulkAction }: TasksTableProps) {
+export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEditTask, onDeleteTask, onBulkAction }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -126,15 +127,18 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, taskId: string) => {
+    if (!canEditTasks) return;
     e.dataTransfer.setData("taskId", taskId);
     setDraggedTaskId(taskId);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    if (!canEditTasks) return;
     e.preventDefault(); 
   };
   
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetTaskId: string) => {
+    if (!canEditTasks) return;
     e.preventDefault();
     const sourceTaskId = e.dataTransfer.getData("taskId");
     setDraggedTaskId(null);
@@ -218,12 +222,12 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
     return (
       <React.Fragment key={task.id}>
         <TableRow
-          draggable
+          draggable={canEditTasks}
           onDragStart={(e) => handleDragStart(e, task.id)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, task.id)}
           className={cn(
-            "cursor-grab",
+            canEditTasks && "cursor-grab",
             draggedTaskId === task.id ? "opacity-50" : "opacity-100",
             level > 0 ? "bg-muted/50" : ""
           )}
@@ -231,11 +235,13 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
         >
           <TableCell className="font-medium">
              <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
-                className="mr-2"
-              />
+              {canEditTasks && (
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                  className="mr-2"
+                />
+              )}
               {hasSubtasks ? (
                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleExpand(task.id)}>
                    <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
@@ -299,28 +305,32 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
           })}
           <TableCell className='no-print'>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
-                <Edit className="h-4 w-4" />
-              </Button>
-               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Essa ação não pode ser desfeita. Isso excluirá permanentemente a tarefa "{task.name}" e todas as suas subtarefas.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDeleteTask(task.id)}>Excluir</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+              {canEditTasks && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Essa ação não pode ser desfeita. Isso excluirá permanentemente a tarefa "{task.name}" e todas as suas subtarefas.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteTask(task.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -336,7 +346,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
 
   return (
     <div className="w-full">
-      {selectedRows.size > 0 ? (
+      {selectedRows.size > 0 && canEditTasks ? (
         <TasksTableBulkActionsToolbar 
           selectedCount={selectedRows.size}
           onBulkAction={handleBulkActionWrapper}
@@ -389,11 +399,13 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
               <TableRow>
                 <TableHead className="w-[40%]">
                   <div className="flex items-center">
-                    <Checkbox
-                        checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
-                        onCheckedChange={handleSelectAll}
-                        className="mr-2"
-                    />
+                    {canEditTasks && (
+                      <Checkbox
+                          checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                          onCheckedChange={handleSelectAll}
+                          className="mr-2"
+                      />
+                    )}
                     Atividade
                   </div>
                 </TableHead>
