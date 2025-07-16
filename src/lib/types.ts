@@ -74,12 +74,30 @@ export interface CustomChartDefinition {
   valueField?: 'plannedHours' | 'actualHours' | 'count';
 }
 
+export type AlertMetric = 'task_status' | 'task_priority' | 'task_overdue' | 'budget_usage';
+export type AlertCondition = 
+  | 'is' 
+  | 'is_not' 
+  | 'changes_to' 
+  | 'becomes' 
+  | 'exceeds_percentage';
+
+export interface AlertRule {
+  id: string;
+  metric: AlertMetric;
+  condition: AlertCondition;
+  value: string; // Could be a status name, priority, or percentage
+  label: string;
+}
+
+
 export interface ProjectConfiguration {
     statuses: StatusDefinition[];
     visibleKpis: Record<string, boolean>;
     customKpis: CustomKpiDefinition[];
     customCharts?: CustomChartDefinition[];
     customFieldDefinitions: CustomFieldDefinition[];
+    alertRules?: AlertRule[];
 }
 
 export type BulkAction = 'delete' | 'duplicate' | 'move';

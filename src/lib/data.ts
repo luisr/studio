@@ -29,6 +29,22 @@ export const defaultConfiguration: ProjectConfiguration = {
     customFieldDefinitions: [
       { id: 'sprint', name: 'Sprint', type: 'text' },
     ],
+    alertRules: [
+        { 
+            id: 'alert-1', 
+            metric: 'task_status', 
+            condition: 'changes_to', 
+            value: 'Bloqueado', 
+            label: 'Alertar quando Status da Tarefa muda para Bloqueado' 
+        },
+        { 
+            id: 'alert-2', 
+            metric: 'budget_usage', 
+            condition: 'exceeds_percentage', 
+            value: '90', 
+            label: 'Alertar quando Uso do Orçamento excede 90%'
+        }
+    ],
 }
 
 export const projects: Project[] = [

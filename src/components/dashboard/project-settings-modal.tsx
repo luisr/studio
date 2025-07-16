@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, ChartType, CustomFieldDefinition } from "@/lib/types";
+import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, CustomFieldDefinition, AlertRule, AlertMetric, AlertCondition } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, PieChart, LineChart as LineChartIcon, BarChart2 } from "lucide-react";
+import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle as AlertTriangleIcon, PieChart, LineChart as LineChartIcon, BarChart2, Bell } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { LucideIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const taskFieldsForKpi: { value: keyof CustomKpiDefinition['field']; label: string }[] = [
     { value: 'plannedHours', label: 'Horas Planejadas' },
@@ -37,7 +38,7 @@ const iconMap: Record<string, LucideIcon> = {
     DollarSign,
     ListTodo,
     Target,
-    AlertTriangle,
+    AlertTriangleIcon,
 };
 
 const iconOptions: {value: string, label: string, icon: LucideIcon}[] = [
@@ -46,7 +47,7 @@ const iconOptions: {value: string, label: string, icon: LucideIcon}[] = [
     { value: 'DollarSign', label: 'Cifrão', icon: DollarSign },
     { value: 'ListTodo', label: 'Lista', icon: ListTodo },
     { value: 'Target', label: 'Alvo', icon: Target },
-    { value: 'AlertTriangle', label: 'Alerta', icon: AlertTriangle },
+    { value: 'AlertTriangleIcon', label: 'Alerta', icon: AlertTriangleIcon },
 ];
 
 const chartCategoricalFields = [
@@ -58,6 +59,21 @@ const chartCategoricalFields = [
 const chartNumericalFields = [
     { value: 'plannedHours', label: 'Horas Planejadas' },
     { value: 'actualHours', label: 'Horas Reais' },
+];
+
+const alertMetrics: { value: AlertMetric, label: string, conditions: AlertCondition[] }[] = [
+    { value: 'task_status', label: 'Status da Tarefa', conditions: ['changes_to'] },
+    { value: 'task_priority', label: 'Prioridade da Tarefa', conditions: ['is', 'changes_to'] },
+    { value: 'task_overdue', label: 'Tarefa Atrasada', conditions: ['becomes'] },
+    { value: 'budget_usage', label: 'Uso do Orçamento', conditions: ['exceeds_percentage'] },
+];
+
+const alertConditions: { value: AlertCondition, label: string }[] = [
+    { value: 'is', label: 'é' },
+    { value: 'is_not', label: 'não é' },
+    { value: 'changes_to', label: 'muda para' },
+    { value: 'becomes', label: 'se torna' },
+    { value: 'exceeds_percentage', label: 'excede' },
 ];
 
 
@@ -79,21 +95,22 @@ export function ProjectSettingsModal({
   const [customKpis, setCustomKpis] = useState<CustomKpiDefinition[]>([]);
   const [customCharts, setCustomCharts] = useState<CustomChartDefinition[]>([]);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
 
 
   useEffect(() => {
     if (isOpen) {
-      // Deep copy to avoid mutating the original state directly
       setStatuses(JSON.parse(JSON.stringify(projectConfiguration.statuses)));
       setVisibleKpis(JSON.parse(JSON.stringify(projectConfiguration.visibleKpis)));
       setCustomKpis(JSON.parse(JSON.stringify(projectConfiguration.customKpis || [])));
       setCustomCharts(JSON.parse(JSON.stringify(projectConfiguration.customCharts || [])));
       setCustomFields(JSON.parse(JSON.stringify(projectConfiguration.customFieldDefinitions || [])));
+      setAlertRules(JSON.parse(JSON.stringify(projectConfiguration.alertRules || [])));
     }
   }, [isOpen, projectConfiguration]);
 
   const handleSave = () => {
-    onSave({ ...projectConfiguration, statuses, visibleKpis, customKpis, customCharts, customFieldDefinitions: customFields });
+    onSave({ ...projectConfiguration, statuses, visibleKpis, customKpis, customCharts, customFieldDefinitions: customFields, alertRules });
     onOpenChange(false);
   };
 
@@ -203,6 +220,52 @@ export function ProjectSettingsModal({
     );
   };
 
+  const handleAddAlertRule = () => {
+    setAlertRules(prev => [
+        ...prev,
+        {
+            id: `alert-${Date.now()}`,
+            metric: 'task_status',
+            condition: 'changes_to',
+            value: statuses.find(s => s.name === 'Bloqueado')?.name || '',
+            label: '',
+        }
+    ]);
+  };
+
+  const handleRemoveAlertRule = (id: string) => {
+    setAlertRules(prev => prev.filter(rule => rule.id !== id));
+  };
+
+  const handleAlertRuleChange = (id: string, field: keyof AlertRule, value: any) => {
+     setAlertRules(prev => prev.map(rule => {
+        if (rule.id === id) {
+            const newRule = { ...rule, [field]: value };
+            
+            if (field === 'metric') {
+                const metricDef = alertMetrics.find(m => m.value === value);
+                newRule.condition = metricDef?.conditions[0] || '' as AlertCondition;
+            }
+
+            const metricDef = alertMetrics.find(m => m.value === newRule.metric);
+            const conditionDef = alertConditions.find(c => c.value === newRule.condition);
+
+            let valueLabel = newRule.value;
+            if (newRule.metric === 'task_status') {
+                valueLabel = statuses.find(s => s.name === newRule.value)?.name || newRule.value;
+            }
+             if (newRule.metric === 'budget_usage') {
+                valueLabel = `${newRule.value}%`;
+            }
+
+            newRule.label = `Alertar quando ${metricDef?.label.toLowerCase()} ${conditionDef?.label.toLowerCase()} ${valueLabel}`;
+
+            return newRule;
+        }
+        return rule;
+     }))
+  };
+
   const allCategoricalFields = [
     ...chartCategoricalFields,
     ...(customFields || []).filter(f => f.type === 'text').map(f => ({ value: f.id, label: f.name }))
@@ -229,246 +292,329 @@ export function ProjectSettingsModal({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 space-y-6 flex-grow overflow-y-auto pr-4">
-
-           <div className="space-y-4">
-              <h4 className="font-semibold text-lg">Campos Personalizados</h4>
-               <div className="space-y-3">
-                  {customFields.map((field) => (
-                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-2 p-2 border rounded-md">
-                      <Input
-                        placeholder="Nome do Campo"
-                        value={field.name}
-                        onChange={(e) => handleCustomFieldChange(field.id, 'name', e.target.value)}
-                        className="col-span-2"
-                      />
-                      <Select value={field.type} onValueChange={(v) => handleCustomFieldChange(field.id, 'type', v)}>
-                          <SelectTrigger><SelectValue/></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="text">Texto</SelectItem>
-                            <SelectItem value="number">Número</SelectItem>
-                            <SelectItem value="date">Data</SelectItem>
-                          </SelectContent>
-                      </Select>
-                       <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomField(field.id)} className="justify-self-end">
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-               </div>
-               <Button variant="outline" size="sm" onClick={handleAddCustomField}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Adicionar Campo
-               </Button>
-            </div>
-            
-            <Separator />
-
-            <div className="space-y-4">
-                 <h4 className="font-semibold text-lg">Status das Tarefas</h4>
-                 <div className="space-y-3">
-                    {statuses.map((status, index) => (
-                        <div key={status.id} className="flex items-center gap-2 p-2 border rounded-md">
-                            <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                            <Input 
-                                type="color" 
-                                value={status.color} 
-                                onChange={(e) => handleStatusChange(index, 'color', e.target.value)}
-                                className="w-12 h-8 p-1"
-                            />
-                            <Input 
-                                value={status.name}
-                                onChange={(e) => handleStatusChange(index, 'name', e.target.value)}
-                                className="flex-1"
-                            />
-                             <div className="flex items-center space-x-2">
-                                <Switch id={`default-${index}`} checked={status.isDefault} onCheckedChange={(c) => handleStatusChange(index, 'isDefault', c)} />
-                                <Label htmlFor={`default-${index}`} className="text-xs">Padrão</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch id={`completed-${index}`} checked={status.isCompleted} onCheckedChange={(c) => handleStatusChange(index, 'isCompleted', c)} />
-                                <Label htmlFor={`completed-${index}`} className="text-xs">Concluído</Label>
-                            </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveStatus(index)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
+        <Tabs defaultValue="general" className="flex-grow overflow-hidden flex flex-col">
+          <TabsList>
+            <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="kpis">KPIs</TabsTrigger>
+            <TabsTrigger value="charts">Gráficos</TabsTrigger>
+            <TabsTrigger value="alerts">Alertas</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex-grow overflow-y-auto pr-4 pt-4 space-y-6">
+            <TabsContent value="general" className="mt-0 space-y-6">
+               <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Campos Personalizados</h4>
+                   <div className="space-y-3">
+                      {customFields.map((field) => (
+                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-2 p-2 border rounded-md">
+                          <Input
+                            placeholder="Nome do Campo"
+                            value={field.name}
+                            onChange={(e) => handleCustomFieldChange(field.id, 'name', e.target.value)}
+                            className="col-span-2"
+                          />
+                          <Select value={field.type} onValueChange={(v) => handleCustomFieldChange(field.id, 'type', v)}>
+                              <SelectTrigger><SelectValue/></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Texto</SelectItem>
+                                <SelectItem value="number">Número</SelectItem>
+                                <SelectItem value="date">Data</SelectItem>
+                              </SelectContent>
+                          </Select>
+                           <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomField(field.id)} className="justify-self-end">
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                    ))}
-                 </div>
-                 <Button variant="outline" size="sm" onClick={handleAddNewStatus}>
-                     <Plus className="mr-2 h-4 w-4" />
-                     Adicionar Status
-                 </Button>
-            </div>
-            
-            <Separator />
+                      ))}
+                   </div>
+                   <Button variant="outline" size="sm" onClick={handleAddCustomField}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Campo
+                   </Button>
+                </div>
+                
+                <Separator />
 
-            <div className="space-y-4">
-                 <h4 className="font-semibold text-lg">Visibilidade dos KPIs Padrão</h4>
-                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(visibleKpis).map(([key, isVisible]) => (
-                         <div key={key} className="flex items-center space-x-2">
-                            <Switch id={`kpi-${key}`} checked={isVisible} onCheckedChange={() => handleKpiToggle(key)} />
-                            <Label htmlFor={`kpi-${key}`}>{kpiLabels[key] || key}</Label>
-                        </div>
-                    ))}
-                 </div>
-            </div>
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-lg">Status das Tarefas</h4>
+                     <div className="space-y-3">
+                        {statuses.map((status, index) => (
+                            <div key={status.id} className="flex items-center gap-2 p-2 border rounded-md">
+                                <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                                <Input 
+                                    type="color" 
+                                    value={status.color} 
+                                    onChange={(e) => handleStatusChange(index, 'color', e.target.value)}
+                                    className="w-12 h-8 p-1"
+                                />
+                                <Input 
+                                    value={status.name}
+                                    onChange={(e) => handleStatusChange(index, 'name', e.target.value)}
+                                    className="flex-1"
+                                />
+                                 <div className="flex items-center space-x-2">
+                                    <Switch id={`default-${index}`} checked={status.isDefault} onCheckedChange={(c) => handleStatusChange(index, 'isDefault', c)} />
+                                    <Label htmlFor={`default-${index}`} className="text-xs">Padrão</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch id={`completed-${index}`} checked={status.isCompleted} onCheckedChange={(c) => handleStatusChange(index, 'isCompleted', c)} />
+                                    <Label htmlFor={`completed-${index}`} className="text-xs">Concluído</Label>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveStatus(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                     </div>
+                     <Button variant="outline" size="sm" onClick={handleAddNewStatus}>
+                         <Plus className="mr-2 h-4 w-4" />
+                         Adicionar Status
+                     </Button>
+                </div>
+            </TabsContent>
 
-            <Separator />
+            <TabsContent value="kpis" className="mt-0 space-y-6">
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-lg">Visibilidade dos KPIs Padrão</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(visibleKpis).map(([key, isVisible]) => (
+                             <div key={key} className="flex items-center space-x-2">
+                                <Switch id={`kpi-${key}`} checked={isVisible} onCheckedChange={() => handleKpiToggle(key)} />
+                                <Label htmlFor={`kpi-${key}`}>{kpiLabels[key] || key}</Label>
+                            </div>
+                        ))}
+                     </div>
+                </div>
+
+                <Separator />
+                
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-lg">KPIs Personalizados</h4>
+                     <div className="space-y-3">
+                        {customKpis.map((kpi) => (
+                           <div key={kpi.id} className="grid grid-cols-1 md:grid-cols-5 items-center gap-2 p-2 border rounded-md">
+                                <Input 
+                                    placeholder="Nome do KPI"
+                                    value={kpi.name}
+                                    onChange={(e) => handleCustomKpiChange(kpi.id, 'name', e.target.value)}
+                                    className="col-span-2 md:col-span-1"
+                                />
+                                 <Select value={kpi.field} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'field', v)}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        {taskFieldsForKpi.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={kpi.aggregation} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'aggregation', v)}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        {aggregationTypes.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                 <Select value={kpi.icon} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'icon', v)}>
+                                    <SelectTrigger>
+                                        <div className="flex items-center gap-2">
+                                            {React.createElement(iconMap[kpi.icon] || BarChart, { className: "h-4 w-4" })}
+                                            <SelectValue />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {iconOptions.map(opt => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                <div className="flex items-center gap-2">
+                                                    <opt.icon className="h-4 w-4" />
+                                                    <span>{opt.label}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomKpi(kpi.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                     </div>
+                     <Button variant="outline" size="sm" onClick={handleAddCustomKpi}>
+                         <Plus className="mr-2 h-4 w-4" />
+                         Adicionar KPI Personalizado
+                     </Button>
+                </div>
+            </TabsContent>
             
-            <div className="space-y-4">
-                 <h4 className="font-semibold text-lg">KPIs Personalizados</h4>
-                 <div className="space-y-3">
-                    {customKpis.map((kpi) => (
-                       <div key={kpi.id} className="grid grid-cols-1 md:grid-cols-5 items-center gap-2 p-2 border rounded-md">
-                            <Input 
-                                placeholder="Nome do KPI"
-                                value={kpi.name}
-                                onChange={(e) => handleCustomKpiChange(kpi.id, 'name', e.target.value)}
-                                className="col-span-2 md:col-span-1"
+            <TabsContent value="charts" className="mt-0 space-y-6">
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Gráficos Personalizados</h4>
+                  <div className="space-y-3">
+                    {customCharts.map(chart => (
+                      <div key={chart.id} className="p-4 border rounded-md space-y-4">
+                        <div className="flex items-center gap-4">
+                           <Input 
+                              placeholder="Nome do Gráfico"
+                              value={chart.name}
+                              onChange={(e) => handleCustomChartChange(chart.id, 'name', e.target.value)}
+                              className="flex-1 font-semibold"
                             />
-                             <Select value={kpi.field} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'field', v)}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    {taskFieldsForKpi.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={kpi.aggregation} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'aggregation', v)}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    {aggregationTypes.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                             <Select value={kpi.icon} onValueChange={(v) => handleCustomKpiChange(kpi.id, 'icon', v)}>
-                                <SelectTrigger>
+                             <Select value={chart.type} onValueChange={(v) => handleCustomChartChange(chart.id, 'type', v)}>
+                                <SelectTrigger className="w-[180px]">
                                     <div className="flex items-center gap-2">
-                                        {React.createElement(iconMap[kpi.icon] || BarChart, { className: "h-4 w-4" })}
-                                        <SelectValue />
+                                        {chart.type === 'bar' && <BarChart className="h-4 w-4" />}
+                                        {chart.type === 'pie' && <PieChart className="h-4 w-4" />}
+                                        {chart.type === 'line' && <LineChartIcon className="h-4 w-4" />}
+                                        {chart.type === 'horizontalBar' && <BarChart2 className="h-4 w-4" />}
+                                        <SelectValue/>
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {iconOptions.map(opt => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            <div className="flex items-center gap-2">
-                                                <opt.icon className="h-4 w-4" />
-                                                <span>{opt.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
+                                    <SelectItem value="bar">Barras Verticais</SelectItem>
+                                    <SelectItem value="horizontalBar">Barras Horizontais</SelectItem>
+                                    <SelectItem value="line">Linha</SelectItem>
+                                    <SelectItem value="pie">Pizza</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomKpi(kpi.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomChart(chart.id)}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
+
+                        {(chart.type === 'bar' || chart.type === 'horizontalBar' || chart.type === 'line') && (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <Label>Eixo X (Categorias)</Label>
+                              <Select value={chart.xAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'xAxisField', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                             <div className="space-y-1">
+                              <Label>Eixo Y (Valores)</Label>
+                              <Select value={chart.yAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisField', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>{chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                             <div className="space-y-1">
+                              <Label>Agregação do Eixo Y</Label>
+                              <Select value={chart.yAxisAggregation} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisAggregation', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="sum">Soma</SelectItem>
+                                    <SelectItem value="average">Média</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
+
+                        {chart.type === 'pie' && (
+                          <div className="grid grid-cols-2 gap-2">
+                             <div className="space-y-1">
+                              <Label>Segmentar por</Label>
+                               <Select value={chart.segmentField} onValueChange={(v) => handleCustomChartChange(chart.id, 'segmentField', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Valor do Segmento</Label>
+                              <Select value={chart.valueField} onValueChange={(v) => handleCustomChartChange(chart.id, 'valueField', v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="count">Contagem de Tarefas</SelectItem>
+                                    {chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                 </div>
-                 <Button variant="outline" size="sm" onClick={handleAddCustomKpi}>
-                     <Plus className="mr-2 h-4 w-4" />
-                     Adicionar KPI Personalizado
-                 </Button>
-            </div>
-
-            <Separator />
-
-            {/* Custom Chart Configuration */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-lg">Gráficos Personalizados</h4>
-              <div className="space-y-3">
-                {customCharts.map(chart => (
-                  <div key={chart.id} className="p-4 border rounded-md space-y-4">
-                    <div className="flex items-center gap-4">
-                       <Input 
-                          placeholder="Nome do Gráfico"
-                          value={chart.name}
-                          onChange={(e) => handleCustomChartChange(chart.id, 'name', e.target.value)}
-                          className="flex-1 font-semibold"
-                        />
-                         <Select value={chart.type} onValueChange={(v) => handleCustomChartChange(chart.id, 'type', v)}>
-                            <SelectTrigger className="w-[180px]">
-                                <div className="flex items-center gap-2">
-                                    {chart.type === 'bar' && <BarChart className="h-4 w-4" />}
-                                    {chart.type === 'pie' && <PieChart className="h-4 w-4" />}
-                                    {chart.type === 'line' && <LineChartIcon className="h-4 w-4" />}
-                                    {chart.type === 'horizontalBar' && <BarChart2 className="h-4 w-4" />}
-                                    <SelectValue/>
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="bar">Barras Verticais</SelectItem>
-                                <SelectItem value="horizontalBar">Barras Horizontais</SelectItem>
-                                <SelectItem value="line">Linha</SelectItem>
-                                <SelectItem value="pie">Pizza</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomChart(chart.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-
-                    {(chart.type === 'bar' || chart.type === 'horizontalBar' || chart.type === 'line') && (
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label>Eixo X (Categorias)</Label>
-                          <Select value={chart.xAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'xAxisField', v)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                         <div className="space-y-1">
-                          <Label>Eixo Y (Valores)</Label>
-                          <Select value={chart.yAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisField', v)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>{chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                         <div className="space-y-1">
-                          <Label>Agregação do Eixo Y</Label>
-                          <Select value={chart.yAxisAggregation} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisAggregation', v)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="sum">Soma</SelectItem>
-                                <SelectItem value="average">Média</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-
-                    {chart.type === 'pie' && (
-                      <div className="grid grid-cols-2 gap-2">
-                         <div className="space-y-1">
-                          <Label>Segmentar por</Label>
-                           <Select value={chart.segmentField} onValueChange={(v) => handleCustomChartChange(chart.id, 'segmentField', v)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Valor do Segmento</Label>
-                          <Select value={chart.valueField} onValueChange={(v) => handleCustomChartChange(chart.id, 'valueField', v)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="count">Contagem de Tarefas</SelectItem>
-                                {chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                ))}
-              </div>
-              <Button variant="outline" size="sm" onClick={handleAddCustomChart}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Gráfico Personalizado
-              </Button>
-            </div>
+                  <Button variant="outline" size="sm" onClick={handleAddCustomChart}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar Gráfico Personalizado
+                  </Button>
+                </div>
+            </TabsContent>
 
+            <TabsContent value="alerts" className="mt-0 space-y-6">
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Regras de Alerta</h4>
+                   <div className="space-y-3">
+                      {alertRules.map((rule) => {
+                        const metricDef = alertMetrics.find(m => m.value === rule.metric);
+                        const availableConditions = alertConditions.filter(c => metricDef?.conditions.includes(c.value));
+                        
+                        let valueInput;
+                        if (rule.metric === 'task_status') {
+                            valueInput = (
+                                <Select value={rule.value} onValueChange={v => handleAlertRuleChange(rule.id, 'value', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{statuses.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            );
+                        } else if (rule.metric === 'task_priority') {
+                            valueInput = (
+                                <Select value={rule.value} onValueChange={v => handleAlertRuleChange(rule.id, 'value', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Alta">Alta</SelectItem>
+                                        <SelectItem value="Média">Média</SelectItem>
+                                        <SelectItem value="Baixa">Baixa</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            );
+                        } else if (rule.metric === 'budget_usage') {
+                             valueInput = (
+                                <div className="flex items-center gap-2">
+                                    <Input 
+                                        type="number" 
+                                        value={rule.value} 
+                                        onChange={e => handleAlertRuleChange(rule.id, 'value', e.target.value)}
+                                        className="w-24"
+                                    />
+                                    <span>%</span>
+                                </div>
+                             );
+                        } else {
+                            valueInput = <Input type="text" value={rule.value} readOnly className="bg-muted" />;
+                        }
 
-        </div>
+                        return (
+                          <div key={rule.id} className="p-3 border rounded-md space-y-3">
+                             <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Bell className="h-4 w-4 text-primary" />
+                                    <span>{rule.label || 'Configurar regra...'}</span>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAlertRule(rule.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                             </div>
+                             <div className="grid grid-cols-3 gap-2 items-center">
+                                <Select value={rule.metric} onValueChange={v => handleAlertRuleChange(rule.id, 'metric', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{alertMetrics.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                                 <Select value={rule.condition} onValueChange={v => handleAlertRuleChange(rule.id, 'condition', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{availableConditions.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                                {valueInput}
+                             </div>
+                          </div>
+                        )
+                      })}
+                   </div>
+                   <Button variant="outline" size="sm" onClick={handleAddAlertRule}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Regra de Alerta
+                   </Button>
+                </div>
+            </TabsContent>
 
+          </div>
+        </Tabs>
         <DialogFooter className="mt-auto pt-4 border-t">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
