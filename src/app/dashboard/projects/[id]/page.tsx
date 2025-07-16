@@ -94,6 +94,10 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
+    // Defer rendering of locale-specific currency until client-side hydration
+    if (typeof window === 'undefined') {
+      return `R$ ${value.toFixed(2)}`;
+    }
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
 

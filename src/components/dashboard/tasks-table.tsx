@@ -136,6 +136,14 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
       if (task.status === 'Concluído' && task.actualHours === 0) return (1).toFixed(2);
       return 'N/A';
   }
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
 
   const renderTask = (task: Task, level: number = 0) => {
     const isSubtask = level > 0;
@@ -169,7 +177,7 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
           <TableCell>
             <Badge variant="outline" className={cn("font-normal", priorityClasses['Média'])}>Média</Badge>
           </TableCell>
-          <TableCell>{new Date(task.plannedEndDate).toLocaleDateString()}</TableCell>
+          <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
           <TableCell>
