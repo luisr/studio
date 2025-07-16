@@ -151,9 +151,9 @@ export function CustomChartCard({ chartDef, tasks }: CustomChartCardProps) {
         <CardTitle>{chartDef.name}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ChartContainer config={{}} className="h-[300px] w-full">
             {renderChart()}
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
