@@ -6,7 +6,7 @@ import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, 
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList, Trello } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
@@ -22,6 +22,7 @@ import Papa from "papaparse";
 import { ImportTasksModal, Mapping, TaskField } from "./import-tasks-modal";
 import { ProjectSettingsModal } from "./project-settings-modal";
 import { ProjectGalleryModal } from "./project-gallery-modal";
+import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
 
 
@@ -180,7 +181,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
   };
   
-  const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => {
+  const handleSaveTask = (taskData: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>) => {
     let flatTasks = [...project.tasks];
     let updatedTaskData = { ...taskData };
 
@@ -246,6 +247,31 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setIsFormOpen(false);
     setEditingTask(null);
   };
+
+  const handleTaskStatusChange = useCallback((taskId: string, newStatus: string) => {
+    setProject(prevProject => {
+        const updatedTasks = prevProject.tasks.map(task => {
+            if (task.id === taskId) {
+                const oldStatus = task.status;
+                if (oldStatus === newStatus) return task;
+
+                const newChangeHistory = [...(task.changeHistory || []), {
+                    fieldChanged: 'status',
+                    oldValue: oldStatus,
+                    newValue: newStatus,
+                    user: 'Usuário', // Placeholder for actual user
+                    timestamp: new Date().toISOString(),
+                    justification: 'Status alterado no quadro Kanban'
+                }];
+
+                return { ...task, status: newStatus, changeHistory: newChangeHistory };
+            }
+            return task;
+        });
+
+        return { ...prevProject, tasks: updatedTasks };
+    });
+  }, []);
   
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
@@ -633,6 +659,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             <div className="flex justify-between items-end">
               <TabsList>
                 <TabsTrigger value="tabela">Tabela</TabsTrigger>
+                <TabsTrigger value="kanban">
+                  <Trello className="w-4 h-4 mr-2" />
+                  Kanban
+                </TabsTrigger>
                  <TabsTrigger value="gantt">
                   <GanttChartSquare className="w-4 h-4 mr-2" />
                   Gantt
@@ -669,6 +699,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                   />
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="kanban">
+              <KanbanView project={project} onTaskStatusChange={handleTaskStatusChange} />
             </TabsContent>
             <TabsContent value="gantt">
               <GanttChart project={project} onSaveBaseline={handleSaveBaseline} onDeleteBaseline={handleDeleteBaseline} />
