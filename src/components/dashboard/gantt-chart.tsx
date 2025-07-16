@@ -29,15 +29,17 @@ const statusColors: { [key: string]: string } = {
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
     tasks.forEach(t => taskMap.set(t.id, { ...t, subTasks: [] }));
+
     const rootTasks: (Task & { subTasks: Task[] })[] = [];
-    tasks.forEach(task => {
-        const currentTask = taskMap.get(task.id);
-        if (!currentTask) return;
+
+    taskMap.forEach(task => {
         if (task.parentId && taskMap.has(task.parentId)) {
             const parent = taskMap.get(task.parentId);
-            if(parent) parent.subTasks.push(currentTask);
+            if (parent) {
+                parent.subTasks.push(task);
+            }
         } else {
-            rootTasks.push(currentTask);
+            rootTasks.push(task);
         }
     });
     return rootTasks;
@@ -47,8 +49,9 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
   let allTasks: (Task & { level: number })[] = [];
   for (const task of tasks) {
     allTasks.push({ ...task, level });
-    if (task.subTasks && task.subTasks.length > 0) {
-      allTasks = allTasks.concat(flattenNestedTasks(task.subTasks, level + 1));
+    const subTasks = (task as any).subTasks;
+    if (subTasks && subTasks.length > 0) {
+      allTasks = allTasks.concat(flattenNestedTasks(subTasks, level + 1));
     }
   }
   return allTasks;
@@ -57,23 +60,24 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
 
 export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
   const { tasks, startDate, endDate, totalDays, dateArray } = useMemo(() => {
-    const tasks = flattenNestedTasks(nestTasks(project.tasks));
+    const nested = nestTasks(project.tasks);
+    const flattened = flattenNestedTasks(nested);
     
-    if (tasks.length === 0) {
+    if (flattened.length === 0) {
       const now = new Date();
       return { tasks: [], startDate: now, endDate: now, totalDays: 1, dateArray: [now] };
     }
 
-    const startDates = tasks.map(t => new Date(t.plannedStartDate));
+    const startDates = flattened.map(t => new Date(t.plannedStartDate));
     if(project.baselineSavedAt) {
-      tasks.forEach(t => {
+      flattened.forEach(t => {
         if(t.baselineStartDate) startDates.push(new Date(t.baselineStartDate));
       });
     }
 
-    const endDates = tasks.map(t => new Date(t.plannedEndDate));
+    const endDates = flattened.map(t => new Date(t.plannedEndDate));
      if(project.baselineSavedAt) {
-      tasks.forEach(t => {
+      flattened.forEach(t => {
         if(t.baselineEndDate) endDates.push(new Date(t.baselineEndDate));
       });
     }
@@ -84,7 +88,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
     const totalDays = differenceInDays(endDate, startDate) + 1;
     const dateArray = eachDayOfInterval({ start: startDate, end: endDate });
 
-    return { tasks, startDate, endDate, totalDays, dateArray };
+    return { tasks: flattened, startDate, endDate, totalDays, dateArray };
   }, [project.tasks, project.baselineSavedAt]);
 
   const getTaskPosition = (taskStart: Date, taskEnd: Date) => {
