@@ -252,7 +252,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   };
 
   const saveTask = (data: TaskFormValues, justification: string) => {
-    const selectedUser = users.find(u => u.id === data.assignee);
+    const selectedUser = users.find(u => u.user.id === data.assignee);
     if (!selectedUser) return;
 
     // Convert effort from UI to hours for storage
@@ -267,7 +267,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
         plannedHours,
         actualHours,
         parentId: data.parentId === "null" ? null : data.parentId,
-        assignee: selectedUser,
+        assignee: selectedUser.user,
         plannedStartDate: data.plannedStartDate.toISOString(),
         plannedEndDate: data.plannedEndDate.toISOString(),
         dependencies: data.dependencies || [],
@@ -279,6 +279,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   const handleJustificationSubmit = () => {
     if (formDataCache && justification.trim()) {
         saveTask(formDataCache, justification);
+        setIsJustificationDialogOpen(false);
+        setJustification('');
     } else {
         toast({
             title: "Justificativa Necessária",
@@ -806,9 +808,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                                     <span className="font-semibold flex items-center gap-1"><UserCircle className="h-3 w-3" />{log.user}</span>
                                     <span className="text-muted-foreground">{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true, locale: ptBR })}</span>
                                 </div>
-                                <p>
+                                <div>
                                     Alterou <Badge variant="secondary">{log.fieldChanged}</Badge> de <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.oldValue)}</Badge> para <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.newValue)}</Badge>.
-                                </p>
+                                </div>
                                 <p className="mt-1 italic text-muted-foreground">
                                     <strong>Justificativa:</strong> {log.justification}
                                 </p>
