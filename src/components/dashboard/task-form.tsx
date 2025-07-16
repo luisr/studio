@@ -35,7 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import { Switch } from "../ui/switch";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { ScrollArea } from "../ui/scroll-area";
@@ -167,6 +167,25 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
       }
     }
   }, [task, form, isOpen, configuration]);
+
+  // Watch for changes in the start date to update the end date
+  useEffect(() => {
+      const subscription = form.watch((value, { name, type }) => {
+        if (name === 'plannedStartDate' && type === 'change') {
+            const startDate = value.plannedStartDate;
+            const oldStartDate = task ? new Date(task.plannedStartDate) : new Date();
+            const oldEndDate = task ? new Date(task.plannedEndDate) : new Date();
+            
+            if (startDate) {
+                const duration = differenceInDays(oldEndDate, oldStartDate);
+                const newEndDate = addDays(startDate, duration);
+                form.setValue('plannedEndDate', newEndDate, { shouldValidate: true });
+            }
+        }
+      });
+      return () => subscription.unsubscribe();
+  }, [form, task]);
+
 
   const onSubmit = (data: TaskFormValues) => {
     const selectedUser = users.find(u => u.id === data.assignee);
