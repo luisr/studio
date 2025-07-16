@@ -1,7 +1,7 @@
 // src/components/dashboard/project-dashboard-client.tsx
 'use client';
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Project, Task } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
@@ -14,6 +14,7 @@ import { TaskForm } from "@/components/dashboard/task-form";
 import { AiAnalysisTab } from "./ai-analysis-tab";
 import { ChartsTab } from "./charts-tab";
 import { GanttChart } from "./gantt-chart";
+import { addDays, max, parseISO } from "date-fns";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -76,27 +77,49 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setProject(initialProject);
   }, [initialProject]);
 
-  const handleTaskUpdate = (updatedTasks: Task[]) => {
+  const handleTaskUpdate = useCallback((updatedTasks: Task[]) => {
     const newProjectState = { ...project, tasks: updatedTasks };
     setProject(newProjectState);
-  };
+  }, [project]);
   
-  const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory'> & { parentId?: string | null }) => {
-    const flatTasks = flattenTasks(project.tasks);
+  const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => {
+    let flatTasks = flattenTasks(project.tasks);
+    let updatedTaskData = { ...taskData };
+
+    // Lógica de ajuste de data com base nas dependências
+    if (updatedTaskData.dependencies && updatedTaskData.dependencies.length > 0) {
+        const dependencyEndDates = updatedTaskData.dependencies
+            .map(depId => flatTasks.find(t => t.id === depId))
+            .filter((t): t is Task => !!t)
+            .map(t => parseISO(t.plannedEndDate));
+        
+        if (dependencyEndDates.length > 0) {
+            const latestDependencyEndDate = max(dependencyEndDates);
+            const newStartDate = addDays(latestDependencyEndDate, 1);
+            
+            // Se a data de início planejada for anterior à nova data de início, ajuste-a
+            if (parseISO(updatedTaskData.plannedStartDate) < newStartDate) {
+                const duration = parseISO(updatedTaskData.plannedEndDate).getTime() - parseISO(updatedTaskData.plannedStartDate).getTime();
+                updatedTaskData.plannedStartDate = newStartDate.toISOString();
+                updatedTaskData.plannedEndDate = new Date(newStartDate.getTime() + duration).toISOString();
+            }
+        }
+    }
+
+
     let newTasks: Task[];
-    
     if (editingTask) {
         // Lógica de atualização
         newTasks = flatTasks.map(t => {
             if (t.id === editingTask.id) {
                 const newChangeHistory = [...(t.changeHistory || [])];
 
-                (Object.keys(taskData) as Array<keyof typeof taskData>).forEach(key => {
-                    if (t[key] !== taskData[key]) {
+                (Object.keys(updatedTaskData) as Array<keyof typeof updatedTaskData>).forEach(key => {
+                    if (t[key] !== updatedTaskData[key]) {
                         newChangeHistory.push({
                             fieldChanged: key,
                             oldValue: String(t[key]),
-                            newValue: String(taskData[key]),
+                            newValue: String(updatedTaskData[key]),
                             user: 'Usuário',
                             timestamp: new Date().toISOString(),
                             justification: 'Atualização via formulário'
@@ -104,14 +127,14 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     }
                 });
 
-                return { ...t, ...taskData, changeHistory: newChangeHistory };
+                return { ...t, ...updatedTaskData, changeHistory: newChangeHistory };
             }
             return t;
         });
     } else {
         // Lógica de criação
         const newTask: Task = {
-            ...taskData,
+            ...updatedTaskData,
             id: `task-${Date.now()}`,
             subTasks: [],
             changeHistory: [],
@@ -136,7 +159,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }
 
   const handleDeleteTask = (taskId: string) => {
-    const flatTasks = flattenTasks(project.tasks);
+    let flatTasks = flattenTasks(project.tasks);
     const taskToDelete = flatTasks.find(t => t.id === taskId);
     if (!taskToDelete) return;
 
@@ -151,7 +174,13 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     }
     getChildIds(taskId);
     
-    const newTasks = flatTasks.filter(t => !childIdsToDelete.has(t.id));
+    let newTasks = flatTasks.filter(t => !childIdsToDelete.has(t.id));
+    // Remover a tarefa deletada das dependências de outras tarefas
+    newTasks = newTasks.map(t => ({
+      ...t,
+      dependencies: t.dependencies.filter(depId => depId !== taskId)
+    }));
+
     handleTaskUpdate(newTasks);
   };
 

@@ -1,7 +1,7 @@
 // src/components/dashboard/task-form.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,7 +18,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -33,11 +32,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Switch } from "../ui/switch";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 
 const taskSchema = z.object({
   name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
@@ -49,6 +49,7 @@ const taskSchema = z.object({
   actualHours: z.coerce.number().min(0, { message: "As horas reais devem ser positivas." }),
   parentId: z.string().nullable().optional(),
   isMilestone: z.boolean().optional(),
+  dependencies: z.array(z.string()).optional(),
 });
 
 type TaskFormValues = z.infer<typeof taskSchema>;
@@ -73,34 +74,39 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
       actualHours: 0,
       parentId: null,
       isMilestone: false,
+      dependencies: [],
     },
   });
 
   useEffect(() => {
-    if (task) {
-      form.reset({
-        name: task.name,
-        assignee: task.assignee.id,
-        status: task.status,
-        plannedStartDate: new Date(task.plannedStartDate),
-        plannedEndDate: new Date(task.plannedEndDate),
-        plannedHours: task.plannedHours,
-        actualHours: task.actualHours,
-        parentId: task.parentId,
-        isMilestone: task.isMilestone,
-      });
-    } else {
-      form.reset({
-        name: "",
-        assignee: "",
-        status: "A Fazer",
-        plannedStartDate: new Date(),
-        plannedEndDate: new Date(),
-        plannedHours: 0,
-        actualHours: 0,
-        parentId: null,
-        isMilestone: false,
-      });
+    if (isOpen) {
+      if (task) {
+        form.reset({
+          name: task.name,
+          assignee: task.assignee.id,
+          status: task.status,
+          plannedStartDate: new Date(task.plannedStartDate),
+          plannedEndDate: new Date(task.plannedEndDate),
+          plannedHours: task.plannedHours,
+          actualHours: task.actualHours,
+          parentId: task.parentId,
+          isMilestone: task.isMilestone,
+          dependencies: task.dependencies || [],
+        });
+      } else {
+        form.reset({
+          name: "",
+          assignee: "",
+          status: "A Fazer",
+          plannedStartDate: new Date(),
+          plannedEndDate: new Date(),
+          plannedHours: 0,
+          actualHours: 0,
+          parentId: null,
+          isMilestone: false,
+          dependencies: [],
+        });
+      }
     }
   }, [task, form, isOpen]);
 
@@ -114,10 +120,12 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
         assignee: selectedUser,
         plannedStartDate: data.plannedStartDate.toISOString(),
         plannedEndDate: data.plannedEndDate.toISOString(),
+        dependencies: data.dependencies || [],
     });
   };
 
   const possibleParents = allTasks.filter(t => t.id !== task?.id);
+  const possibleDependencies = allTasks.filter(t => t.id !== task?.id && (!task || !task.parentId || t.id !== task.parentId));
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -192,7 +200,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                   control={form.control}
                   name="parentId"
@@ -212,6 +220,67 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dependencies"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Dependências</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                    "w-full justify-between",
+                                    !field.value?.length && "text-muted-foreground"
+                                    )}
+                                >
+                                    {field.value && field.value.length > 0
+                                    ? `${field.value.length} selecionada(s)`
+                                    : "Selecione as dependências"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                <CommandInput placeholder="Buscar tarefa..." />
+                                <CommandList>
+                                    <CommandEmpty>Nenhuma tarefa encontrada.</CommandEmpty>
+                                    <CommandGroup>
+                                    {possibleDependencies.map((depTask) => (
+                                        <CommandItem
+                                        key={depTask.id}
+                                        onSelect={() => {
+                                            const selected = field.value || [];
+                                            const isSelected = selected.includes(depTask.id);
+                                            const newSelected = isSelected
+                                            ? selected.filter((id) => id !== depTask.id)
+                                            : [...selected, depTask.id];
+                                            field.onChange(newSelected);
+                                        }}
+                                        >
+                                        <Check
+                                            className={cn(
+                                            "mr-2 h-4 w-4",
+                                            (field.value || []).includes(depTask.id) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        {depTask.name}
+                                        </CommandItem>
+                                    ))}
+                                    </CommandGroup>
+                                </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -332,9 +401,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                   <div className="space-y-0.5">
                     <FormLabel>É um Marco?</FormLabel>
-                    <FormDescription>
+                    <p className="text-sm text-muted-foreground">
                       Marcos são pontos de verificação importantes no projeto.
-                    </FormDescription>
+                    </p>
                   </div>
                   <FormControl>
                     <Switch
