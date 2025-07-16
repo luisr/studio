@@ -22,27 +22,26 @@ import { useToast } from "@/hooks/use-toast";
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
-    const tasksWithoutParents: Task[] = [];
-    tasks.forEach(t => {
-      tasksWithoutParents.push(t);
-      taskMap.set(t.id, { ...t, subTasks: [] })
+    
+    // Primeiro, cria um mapa de todas as tarefas para fácil acesso
+    tasks.forEach(task => {
+        taskMap.set(task.id, { ...task, subTasks: [] });
     });
 
     const rootTasks: (Task & { subTasks: Task[] })[] = [];
 
-    tasksWithoutParents.forEach(task => {
-        const currentTask = taskMap.get(task.id);
-        if (!currentTask) return;
-
+    // Em seguida, percorre o mapa para construir a árvore
+    taskMap.forEach(task => {
         if (task.parentId && taskMap.has(task.parentId)) {
             const parent = taskMap.get(task.parentId);
-            if(parent) {
-                parent.subTasks.push(currentTask);
+            if (parent) {
+                parent.subTasks.push(task);
             }
         } else {
-            rootTasks.push(currentTask);
+            rootTasks.push(task);
         }
     });
+
     return rootTasks;
 };
 
