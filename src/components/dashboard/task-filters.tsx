@@ -18,7 +18,8 @@ const filterTasksRecursive = (tasks: Task[], searchTerm: string, statusFilter: s
     
     for (const task of tasks) {
         const lowercasedTerm = searchTerm.toLowerCase();
-        const matchesSearch = task.name.toLowerCase().includes(lowercasedTerm);
+        // A tarefa pode não ter nome se estiver mal formada.
+        const matchesSearch = task.name ? task.name.toLowerCase().includes(lowercasedTerm) : false;
         const matchesStatus = statusFilter === "all" || task.status === statusFilter;
 
         let subTasks: Task[] = [];
