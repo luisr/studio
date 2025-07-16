@@ -50,16 +50,24 @@ const prompt = ai.definePrompt({
   {{/each}}
 
   Histórico de Mudanças:
-  {{#each changeHistory}}
-  - Campo: {{fieldChanged}}, Valor Antigo: {{oldValue}}, Novo Valor: {{newValue}}, Usuário: {{user}}, Timestamp: {{timestamp}}, Justificação: {{justification}}
-  {{/each}}
+  {{#if changeHistory}}
+    {{#each changeHistory}}
+    - Campo: {{fieldChanged}}, Valor Antigo: {{oldValue}}, Novo Valor: {{newValue}}, Usuário: {{user}}, Timestamp: {{timestamp}}, Justificação: "{{justification}}"
+    {{/each}}
+  {{else}}
+    Nenhuma mudança registrada.
+  {{/if}}
 
   Riscos:
-  {{#each risks}}
-  - {{this}}
-  {{/each}}
+  {{#if risks}}
+    {{#each risks}}
+    - {{this}}
+    {{/each}}
+  {{else}}
+    Nenhum risco identificado.
+  {{/if}}
 
-  Por favor, forneça um resumo conciso do status do projeto, incluindo progresso, riscos e possíveis problemas. Além disso, forneça recomendações para abordar possíveis problemas e mitigar riscos. A resposta DEVE ser em português.
+  Por favor, forneça um resumo conciso do status do projeto. Analise o progresso, os riscos e, mais importante, as informações do histórico de mudanças para identificar padrões, causas de atrasos ou estouros de orçamento. Com base nessa análise, forneça recomendações para abordar possíveis problemas e mitigar riscos. A resposta DEVE ser em português.
   `,
 });
 

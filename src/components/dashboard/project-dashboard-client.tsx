@@ -205,14 +205,18 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
                 (Object.keys(updatedTaskData) as Array<keyof typeof updatedTaskData>).forEach(key => {
                     const typedKey = key as keyof Task;
-                    if (t[typedKey] !== updatedTaskData[typedKey]) {
+                    // Compare string representations to handle different types (dates, objects etc.)
+                    const oldValueStr = JSON.stringify(t[typedKey]);
+                    const newValueStr = JSON.stringify(updatedTaskData[typedKey]);
+
+                    if (oldValueStr !== newValueStr) {
                         newChangeHistory.push({
                             fieldChanged: key,
                             oldValue: String(t[typedKey]),
                             newValue: String(updatedTaskData[typedKey]),
-                            user: 'Usuário',
+                            user: 'Usuário', // Placeholder for actual user
                             timestamp: new Date().toISOString(),
-                            justification: 'Atualização via formulário'
+                            justification: 'Atualização via formulário' // Placeholder for justification
                         });
                     }
                 });
