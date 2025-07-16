@@ -11,6 +11,7 @@ export interface User {
   id: string;
   name: string;
   avatar: string;
+  role?: 'Admin' | 'Editor' | 'Viewer'; // Role within a project
 }
 
 export interface CustomFieldDefinition {
