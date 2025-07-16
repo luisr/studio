@@ -60,7 +60,10 @@ export default function AllTasksPage() {
   
   const formatDate = (dateString: string) => {
     if(!dateString) return '-';
-    return format(new Date(dateString), 'dd/MM/yyyy');
+    // When a date string doesn't have a timezone, JS can interpret it in the server's timezone
+    // or the client's timezone, leading to a mismatch. Adding 'T00:00:00' makes it explicit.
+    const date = new Date(`${dateString}T00:00:00`);
+    return format(date, 'dd/MM/yyyy');
   }
 
   return (
