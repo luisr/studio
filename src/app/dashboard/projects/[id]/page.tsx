@@ -1,7 +1,7 @@
 // src/app/dashboard/projects/[id]/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import type { Project, Task } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -14,16 +14,20 @@ import { TaskFilters } from "@/components/dashboard/task-filters";
 import { projects as initialProjects } from "@/lib/data";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
+  // Resolva o ID aqui usando React.use()
+  const resolvedParams = use(params);
+  
   const [project, setProject] = useState<Project | undefined>(undefined);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    const currentProject = initialProjects.find((p) => p.id === params.id);
+    // Agora use o ID resolvido
+    const currentProject = initialProjects.find((p) => p.id === resolvedParams.id);
     if (currentProject) {
       setProject(currentProject);
       setFilteredTasks(currentProject.tasks);
     }
-  }, [params.id]);
+  }, [resolvedParams.id]);
   
   if (!project) {
     // Renderiza um estado de carregamento ou esqueleto para evitar chamar notFound em re-renderizações no lado do cliente.
@@ -94,19 +98,25 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
+    // Para evitar erros de hidratação, garanta que a formatação seja consistente ou executada somente no cliente.
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => setIsClient(true), []);
+    if(!isClient) return 'R$ ...';
+
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
   
   const formatDate = (dateString: string) => {
-    if (typeof window === 'undefined') {
-        // Formato consistente no servidor para evitar mismatch
-        return new Date(dateString).toLocaleDateString('en-US', { timeZone: 'UTC' });
-    }
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    // Garante que a formatação da data seja feita no cliente para evitar erros de hidratação
+    const [formattedDate, setFormattedDate] = useState(dateString);
+    useEffect(() => {
+        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }));
+    }, [dateString]);
+    return formattedDate;
   };
 
   return (
