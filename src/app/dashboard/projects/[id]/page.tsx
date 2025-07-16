@@ -14,10 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
-  const [project, setProject] = useState<Project | undefined>(() => 
-    initialProjects.find((p) => p.id === params.id)
-  );
-  
+  const [project, setProject] = useState<Project | undefined>(undefined);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
   useEffect(() => {
@@ -29,10 +26,9 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   }, [params.id]);
   
   if (!project) {
-    // Render a loading state or skeleton here to avoid calling notFound on client-side re-renders
-    // For now, returning null will prevent rendering until the project is found.
-    // If the project is never found, a better UX would be to show a "not found" message.
-    // notFound() should ideally be called from server components or during the initial server render.
+    // Renderiza um estado de carregamento ou esqueleto para evitar chamar notFound em re-renderizações no lado do cliente.
+    // Por enquanto, retornar null impedirá a renderização até que o projeto seja encontrado.
+    // notFound() deve ser idealmente chamado a partir de componentes do servidor ou durante a renderização inicial do servidor.
     return null; 
   }
 
@@ -40,7 +36,7 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     if(project) {
       const newProjectState = {...project, tasks: updatedTasks};
       setProject(newProjectState);
-      // The filter component will handle filtering this new state.
+      // O componente de filtro lidará com a filtragem deste novo estado.
     }
   };
 
@@ -48,7 +44,7 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     if (tasks.length === 0) return 0;
     
     const totalWeightedProgress = tasks.reduce((acc, task) => {
-        const progress = task.status === 'Concluído' ? 100 : 0; // Simple progress
+        const progress = task.status === 'Concluído' ? 100 : 0; // Progresso simples
         return acc + (progress * (task.plannedHours || 1));
     }, 0);
 
@@ -75,7 +71,7 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     const tasks = project.tasks;
     const completedTasks = tasks.filter(t => t.status === 'Concluído').length;
     
-    // Simplified SPI/CPI calculation
+    // Cálculo simplificado de SPI/CPI
     const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
     const earnedValue = calculateTotalProgress(tasks) / 100 * totalPlannedHours;
@@ -98,27 +94,15 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
-    const [formattedValue, setFormattedValue] = useState('');
-
-    useEffect(() => {
-      setFormattedValue(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value));
-    }, [value]);
-  
-    return formattedValue;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
   
   const formatDate = (dateString: string) => {
-    const [formattedDate, setFormattedDate] = useState('');
-  
-    useEffect(() => {
-      setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }));
-    }, [dateString]);
-  
-    return formattedDate;
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   return (
