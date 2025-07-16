@@ -4,21 +4,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Folder,
   CheckSquare,
   FileText,
   Users,
-  TrendingUp,
-  Activity,
-  BrainCircuit,
   LogOut,
   User as UserIcon,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
-import { projects } from "@/lib/data";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +24,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
+import type { User, Project } from "@/lib/types";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useState } from "react";
+import { ScrollArea } from "../ui/scroll-area";
+
 
 const BrainIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white p-2 bg-primary rounded-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -36,53 +41,74 @@ const BrainIcon = () => (
     </svg>
 )
 
+interface DashboardSidebarProps {
+  user: User;
+  projects: Project[];
+}
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
   const pathname = usePathname();
-  // Placeholder for the current user. In a real app, this would come from an auth context.
-  const currentUser = projects[0].manager;
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
 
   const navLinks = [
-    { href: "/dashboard", label: "Dashboard Macro", icon: LayoutDashboard },
-    { href: "/dashboard/projects", label: "Projetos", icon: Folder },
-    { href: "/dashboard/tasks", label: "Tarefas", icon: CheckSquare },
+    { href: "/dashboard/tasks", label: "Todas as Tarefas", icon: CheckSquare },
     { href: "/dashboard/reports", label: "Relatórios", icon: FileText },
     { href: "/dashboard/users", label: "Usuários", icon: Users },
   ];
 
-  const totalProjects = projects.length;
-  const pendingTasks = projects.flatMap(p => p.tasks).filter(t => t.status !== 'Concluído').length;
-  // This is just a placeholder value
-  const aiAnalyses = 3;
-
-   const insightLinks = [
-    { label: "Projetos Ativos", icon: TrendingUp, value: totalProjects },
-    { label: "Tarefas Pendentes", icon: Activity, value: pendingTasks },
-    { label: "Análises IA", icon: BrainCircuit, value: aiAnalyses },
-  ];
-
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col justify-between">
-      <div>
-        <div className="flex items-center gap-3 pb-6 px-2">
+      <div className="flex flex-col gap-4 overflow-hidden">
+        <Link href="/dashboard" className="flex items-center gap-3 pb-2 px-2 border-b">
            <BrainIcon />
           <div>
             <h1 className="text-xl font-bold text-foreground">To Sabendo</h1>
-            <p className="text-xs text-muted-foreground">Gestão Inteligente de Projetos</p>
           </div>
-        </div>
+        </Link>
 
-        <div className="space-y-4">
-            <div>
-                <h2 className="px-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Navegação Principal</h2>
-                <nav className="space-y-1">
+        <ScrollArea className="flex-1 -mr-4 pr-4">
+            <div className="space-y-4">
+                <nav className="space-y-1 px-2">
+                    <Collapsible open={isProjectsOpen} onOpenChange={setIsProjectsOpen}>
+                        <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                <div className="flex items-center gap-3 text-sm font-semibold">
+                                <Folder className="w-4 h-4" />
+                                <span>Meus Projetos</span>
+                                </div>
+                                <ChevronDown className={cn("h-4 w-4 transition-transform", isProjectsOpen && "rotate-180")} />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-1 pt-1">
+                        {projects.map((project) => (
+                            <Link
+                                key={project.id}
+                                href={`/dashboard/projects/${project.id}`}
+                                className={cn(
+                                "flex items-center gap-3 pl-8 pr-2 py-1.5 rounded-md text-sm font-medium transition-colors",
+                                pathname === `/dashboard/projects/${project.id}`
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <span className="truncate">{project.name}</span>
+                            </Link>
+                        ))}
+                        </CollapsibleContent>
+                    </Collapsible>
+                </nav>
+                
+                <Separator />
+                
+                <nav className="space-y-1 px-2">
+                    <h2 className="px-2 mb-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase">Análise</h2>
                     {navLinks.map((link) => (
                     <Link
                         key={link.label}
                         href={link.href}
                         className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                         pathname.startsWith(link.href) && link.href !== '/dashboard' || pathname === link.href
+                        "flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors",
+                        pathname.startsWith(link.href)
                             ? "bg-primary/10 text-primary"
                             : "hover:bg-muted"
                         )}
@@ -93,40 +119,21 @@ export function DashboardSidebar() {
                     ))}
                 </nav>
             </div>
-
-            <div>
-                <h2 className="px-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Análises e Insights</h2>
-                <div className="space-y-1">
-                 {insightLinks.map((link) => (
-                    <div
-                        key={link.label}
-                        className="flex items-center justify-between gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground"
-                    >
-                        <div className="flex items-center gap-3">
-                            <link.icon className="w-4 h-4" />
-                            <span>{link.label}</span>
-                        </div>
-                        <span className="font-bold text-foreground">{link.value}</span>
-                    </div>
-                 ))}
-                </div>
-            </div>
-        </div>
+        </ScrollArea>
       </div>
 
-      <div className="pt-6">
-        <Separator className="mb-4"/>
+      <div className="pt-4 border-t">
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start text-left h-auto px-2 py-2">
                     <div className="flex items-center gap-3">
                         <Avatar>
-                            <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                            <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={user.avatar} alt={user.name} />
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col items-start">
-                            <p className="text-sm font-semibold text-foreground">{currentUser.name}</p>
-                            <p className="text-xs text-muted-foreground">{currentUser.role || "Membro"}</p>
+                        <div className="flex flex-col items-start overflow-hidden">
+                            <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         </div>
                     </div>
                 </Button>
@@ -134,9 +141,9 @@ export function DashboardSidebar() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{currentUser.name}</p>
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                            {currentUser.email}
+                            {user.email}
                         </p>
                     </div>
                 </DropdownMenuLabel>
@@ -148,9 +155,11 @@ export function DashboardSidebar() {
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair</span>
+                <DropdownMenuItem asChild>
+                    <Link href="/">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                    </Link>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
