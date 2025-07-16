@@ -17,26 +17,27 @@ import { projects as initialProjects } from "@/lib/data";
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
+    // Initialize every task with a subTasks array
     tasks.forEach(t => taskMap.set(t.id, { ...t, subTasks: [] }));
 
     const rootTasks: (Task & { subTasks: Task[] })[] = [];
 
     tasks.forEach(task => {
+        const currentTask = taskMap.get(task.id);
+        if (!currentTask) return;
+
         if (task.parentId && taskMap.has(task.parentId)) {
             const parent = taskMap.get(task.parentId);
-            const currentTask = taskMap.get(task.id);
-            if(parent && currentTask) {
+            if(parent) {
                 parent.subTasks.push(currentTask);
             }
         } else {
-            const currentTask = taskMap.get(task.id);
-            if (currentTask) {
-                 rootTasks.push(currentTask);
-            }
+            rootTasks.push(currentTask);
         }
     });
     return rootTasks;
 };
+
 
 const flattenTasks = (tasks: Task[]): Task[] => {
   let allTasks: Task[] = [];
@@ -87,16 +88,14 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         // Lógica de atualização
         newTasks = flatTasks.map(t => {
             if (t.id === editingTask.id) {
-                const changes: Partial<Task> = {};
                 const newChangeHistory = [...(t.changeHistory || [])];
 
-                Object.keys(taskData).forEach(key => {
-                    const typedKey = key as keyof typeof taskData;
-                    if (t[typedKey] !== taskData[typedKey]) {
+                (Object.keys(taskData) as Array<keyof typeof taskData>).forEach(key => {
+                    if (t[key] !== taskData[key]) {
                         newChangeHistory.push({
-                            fieldChanged: typedKey,
-                            oldValue: String(t[typedKey]),
-                            newValue: String(taskData[typedKey]),
+                            fieldChanged: key,
+                            oldValue: String(t[key]),
+                            newValue: String(taskData[key]),
                             user: 'Usuário',
                             timestamp: new Date().toISOString(),
                             justification: 'Atualização via formulário'
@@ -244,8 +243,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             </div>
             <TabsContent value="tabela">
               <Card>
+                <TaskFilters tasks={nestedTasks} onFilterChange={setFilteredTasks} />
                 <CardContent className="p-0">
-                  <TaskFilters tasks={nestedTasks} onFilterChange={setFilteredTasks} />
                   <TasksTable 
                     tasks={filteredTasks} 
                     allTasks={project.tasks} 

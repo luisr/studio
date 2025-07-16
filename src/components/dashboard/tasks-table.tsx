@@ -1,7 +1,7 @@
 // src/components/dashboard/tasks-table.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Task } from "@/lib/types";
 import {
   Table,
@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, GripVertical, CornerDownRight, Target } from "lucide-react";
+import { Edit, Trash2, GripVertical, CornerDownRight, Target, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { TasksTableToolbar } from './tasks-table-toolbar';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -39,9 +40,48 @@ const priorityClasses: { [key: string]: string } = {
   'Baixa': 'bg-blue-500/20 text-blue-700',
 };
 
+const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
+  let ids: string[] = [];
+  for (const task of tasks) {
+    if (task.subTasks && task.subTasks.length > 0) {
+      ids.push(task.id);
+      ids = ids.concat(getAllTaskIdsWithSubtasks(task.subTasks));
+    }
+  }
+  return ids;
+};
 
 export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Expand all by default
+  useEffect(() => {
+    const allParentIds = getAllTaskIdsWithSubtasks(tasks);
+    setExpandedRows(new Set(allParentIds));
+  }, [tasks]);
+
+
+  const handleToggleExpand = (taskId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAll = () => {
+    const allParentIds = getAllTaskIdsWithSubtasks(tasks);
+    setExpandedRows(new Set(allParentIds));
+  };
+
+  const collapseAll = () => {
+    setExpandedRows(new Set());
+  };
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, taskId: string) => {
     e.dataTransfer.setData("taskId", taskId);
@@ -77,7 +117,6 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
     const sourceTaskIndex = newTasks.findIndex(t => t.id === sourceTaskId);
     if (sourceTaskIndex > -1) {
         newTasks[sourceTaskIndex].parentId = targetTaskId;
-        newTasks[sourceTaskIndex].isSubtask = true;
     }
     
     onTasksChange(newTasks);
@@ -111,7 +150,8 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
   }
 
   const renderTask = (task: Task, level: number = 0) => {
-    const isSubtask = level > 0;
+    const isExpanded = expandedRows.has(task.id);
+    const hasSubtasks = task.subTasks && task.subTasks.length > 0;
     const spi = calculateSPI(task);
     const cpi = calculateCPI(task);
 
@@ -125,13 +165,19 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
           className={cn(
             "cursor-grab",
             draggedTaskId === task.id ? "opacity-50" : "opacity-100",
-            isSubtask ? "bg-muted/50" : ""
+            level > 0 ? "bg-muted/50" : ""
           )}
         >
           <TableCell className="font-medium">
             <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              {isSubtask && <CornerDownRight className="h-4 w-4 text-muted-foreground" />}
+              {hasSubtasks ? (
+                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleExpand(task.id)}>
+                   <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                 </Button>
+              ) : (
+                <span className="w-6 h-6 inline-block" /> // Placeholder for alignment
+              )}
+              {level > 0 && <CornerDownRight className="h-4 w-4 text-muted-foreground -ml-2" />}
               {task.isMilestone && (
                 <TooltipProvider>
                     <Tooltip>
@@ -184,13 +230,14 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
             </div>
           </TableCell>
         </TableRow>
-        {task.subTasks && task.subTasks.map(subTask => renderTask(subTask, level + 1))}
+        {isExpanded && hasSubtasks && task.subTasks.map(subTask => renderTask(subTask, level + 1))}
       </React.Fragment>
     );
   };
 
   return (
     <div className="w-full overflow-x-auto">
+       <TasksTableToolbar onExpandAll={expandAll} onCollapseAll={collapseAll} />
       <Table>
         <TableHeader>
           <TableRow>
