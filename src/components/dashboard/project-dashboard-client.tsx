@@ -6,7 +6,7 @@ import type { Project, Task } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
@@ -15,6 +15,9 @@ import { AiAnalysisTab } from "./ai-analysis-tab";
 import { ChartsTab } from "./charts-tab";
 import { GanttChart } from "./gantt-chart";
 import { addDays, max, parseISO } from "date-fns";
+import { RoadmapView } from "./roadmap-view";
+import { BacklogView } from "./backlog-view";
+import { useToast } from "@/hooks/use-toast";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -59,6 +62,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
   
   const nestedTasks = useMemo(() => nestTasks(project.tasks), [project.tasks]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestedTasks);
@@ -81,6 +85,42 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     const newProjectState = { ...project, tasks: updatedTasks };
     setProject(newProjectState);
   }, [project]);
+
+   const handleSaveBaseline = () => {
+    const tasksWithBaseline = project.tasks.map(task => ({
+      ...task,
+      baselineStartDate: task.plannedStartDate,
+      baselineEndDate: task.plannedEndDate,
+    }));
+    setProject({
+      ...project,
+      tasks: tasksWithBaseline,
+      baselineSavedAt: new Date().toISOString(),
+    });
+    toast({
+        title: "Linha de Base Salva",
+        description: "A linha de base do projeto foi salva com sucesso.",
+    });
+  };
+
+  const handleDeleteBaseline = () => {
+    const tasksWithoutBaseline = project.tasks.map(task => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { baselineStartDate, baselineEndDate, ...rest } = task;
+      return rest;
+    });
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { baselineSavedAt, ...restProject } = project;
+    setProject({
+      ...restProject,
+      tasks: tasksWithoutBaseline,
+    });
+     toast({
+        title: "Linha de Base Excluída",
+        description: "A linha de base do projeto foi removida.",
+        variant: "destructive"
+    });
+  };
   
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => {
     let flatTasks = flattenTasks(project.tasks);
@@ -262,19 +302,26 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             <div className="flex justify-between items-end">
               <TabsList>
                 <TabsTrigger value="tabela">Tabela</TabsTrigger>
-                <TabsTrigger value="ai_analysis">
-                    <BrainCircuit className="w-4 h-4 mr-2" />
-                    Análise IA
+                 <TabsTrigger value="gantt">
+                  <GanttChartSquare className="w-4 h-4 mr-2" />
+                  Gantt
+                </TabsTrigger>
+                <TabsTrigger value="roadmap">
+                  <Route className="w-4 h-4 mr-2" />
+                  Roadmap
+                </TabsTrigger>
+                <TabsTrigger value="backlog">
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Backlog
                 </TabsTrigger>
                  <TabsTrigger value="graficos">
                     <PieChart className="w-4 h-4 mr-2" />
                     Gráficos
                 </TabsTrigger>
-                <TabsTrigger value="gantt">
-                  <GanttChartSquare className="w-4 h-4 mr-2" />
-                  Gantt
+                 <TabsTrigger value="ai_analysis">
+                    <BrainCircuit className="w-4 h-4 mr-2" />
+                    Análise IA
                 </TabsTrigger>
-                <TabsTrigger value="kanban" disabled>Kanban</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="tabela">
@@ -291,14 +338,20 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="ai_analysis">
-              <AiAnalysisTab project={project} />
+            <TabsContent value="gantt">
+              <GanttChart project={project} onSaveBaseline={handleSaveBaseline} onDeleteBaseline={handleDeleteBaseline} />
             </TabsContent>
-            <TabsContent value="graficos">
+             <TabsContent value="roadmap">
+              <RoadmapView project={project} />
+            </TabsContent>
+             <TabsContent value="backlog">
+              <BacklogView project={project} />
+            </TabsContent>
+             <TabsContent value="graficos">
               <ChartsTab project={project} />
             </TabsContent>
-            <TabsContent value="gantt">
-              <GanttChart project={project} />
+            <TabsContent value="ai_analysis">
+              <AiAnalysisTab project={project} />
             </TabsContent>
           </Tabs>
         </div>

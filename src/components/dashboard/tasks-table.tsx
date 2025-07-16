@@ -198,7 +198,7 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
             <Badge variant="outline" className={cn("font-normal", statusClasses[task.status] || statusClasses['A Fazer'])}>{task.status}</Badge>
           </TableCell>
           <TableCell>
-            <Badge variant="outline" className={cn("font-normal", priorityClasses['Média'])}>Média</Badge>
+            <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
           </TableCell>
           <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>

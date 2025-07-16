@@ -31,6 +31,9 @@ export interface Task {
   parentId?: string | null;
   isMilestone?: boolean;
   color?: string;
+  baselineStartDate?: string;
+  baselineEndDate?: string;
+  priority?: 'Alta' | 'Média' | 'Baixa';
 }
 
 export interface Project {
@@ -49,4 +52,5 @@ export interface Project {
   kpis: {
     [key: string]: number | string;
   };
+  baselineSavedAt?: string;
 }
