@@ -1,7 +1,7 @@
 // src/components/dashboard/tasks-table.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Project, Task } from "@/lib/types";
 import {
   Table,
@@ -22,19 +22,11 @@ import { ViewActions } from './view-actions';
 
 interface TasksTableProps {
   tasks: Task[];
-  allTasks: Task[]; // All tasks for context
   project: Project;
   onTasksChange: (tasks: Task[]) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
 }
-
-const statusClasses: { [key: string]: string } = {
-  'Concluído': 'bg-green-100 text-green-800 border-green-200',
-  'Em Andamento': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  'A Fazer': 'bg-gray-100 text-gray-800 border-gray-200',
-  'Bloqueado': 'bg-red-100 text-red-800 border-red-200',
-};
 
 const priorityClasses: { [key: string]: string } = {
   'Alta': 'bg-red-500/20 text-red-700',
@@ -53,10 +45,18 @@ const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   return ids;
 };
 
-export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
+export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const printableRef = useRef<HTMLDivElement>(null);
+
+  const statusColorMap = useMemo(() => {
+    return project.configuration.statuses.reduce((acc, status) => {
+        acc[status.name] = status.color;
+        return acc;
+    }, {} as Record<string, string>);
+  }, [project.configuration.statuses]);
+
 
   // Expand all by default
   useEffect(() => {
@@ -95,17 +95,6 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
     e.preventDefault(); 
   };
   
-  const flattenTasks = (tasksToFlatten: Task[]): Task[] => {
-    let flatList: Task[] = [];
-    for (const task of tasksToFlatten) {
-        flatList.push(task);
-        if (task.subTasks) {
-            flatList = flatList.concat(flattenTasks(task.subTasks));
-        }
-    }
-    return flatList;
-  }
-
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetTaskId: string) => {
     e.preventDefault();
     const sourceTaskId = e.dataTransfer.getData("taskId");
@@ -114,7 +103,7 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
     if (sourceTaskId === targetTaskId) return;
 
     // Use a flat list of all tasks for easier manipulation
-    let newTasks = flattenTasks(allTasks);
+    let newTasks = [...project.tasks];
 
     // Find the source task and update its parentId
     const sourceTaskIndex = newTasks.findIndex(t => t.id === sourceTaskId);
@@ -126,7 +115,8 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
   };
 
   const calculateSPI = (task: Task) => {
-      if (task.status === 'Concluído' && task.actualEndDate && task.actualStartDate) {
+      const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
+      if (completedStatus && task.status === completedStatus.name && task.actualEndDate && task.actualStartDate) {
           const plannedDuration = new Date(task.plannedEndDate).getTime() - new Date(task.plannedStartDate).getTime();
           const actualDuration = new Date(task.actualEndDate).getTime() - new Date(task.actualStartDate).getTime();
           if(actualDuration === 0) return (1).toFixed(2);
@@ -136,10 +126,11 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
   }
 
   const calculateCPI = (task: Task) => {
+      const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
       if (task.actualHours > 0) {
           return (task.plannedHours / task.actualHours).toFixed(2);
       }
-      if (task.status === 'Concluído' && task.actualHours === 0) return (1).toFixed(2);
+      if (completedStatus && task.status === completedStatus.name && task.actualHours === 0) return (1).toFixed(2);
       return 'N/A';
   }
   
@@ -198,7 +189,13 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
           </TableCell>
           <TableCell>{task.assignee.name}</TableCell>
           <TableCell>
-            <Badge variant="outline" className={cn("font-normal", statusClasses[task.status] || statusClasses['A Fazer'])}>{task.status}</Badge>
+            <Badge variant="outline" style={{ 
+                backgroundColor: `${statusColorMap[task.status]}33`, // 20% opacity
+                color: statusColorMap[task.status],
+                borderColor: `${statusColorMap[task.status]}80` // 50% opacity
+             }}>
+                {task.status}
+            </Badge>
           </TableCell>
           <TableCell>
             <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>

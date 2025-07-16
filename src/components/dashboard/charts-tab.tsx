@@ -12,13 +12,6 @@ interface ChartsTabProps {
   project: Project;
 }
 
-const statusColors: { [key: string]: string } = {
-  'A Fazer': 'hsl(var(--chart-1))',
-  'Em Andamento': 'hsl(var(--chart-2))',
-  'Concluído': 'hsl(var(--chart-3))',
-  'Bloqueado': 'hsl(var(--chart-4))',
-};
-
 export function ChartsTab({ project }: ChartsTabProps) {
   const printableRef = useRef<HTMLDivElement>(null);
 
@@ -33,21 +26,19 @@ export function ChartsTab({ project }: ChartsTabProps) {
   }, [project.tasks]);
 
   const statusChartData = useMemo(() => {
-    const statusCounts: { [key: string]: number } = {
-      'A Fazer': 0,
-      'Em Andamento': 0,
-      'Concluído': 0,
-      'Bloqueado': 0,
-    };
+    const statusCounts = project.configuration.statuses.reduce((acc, status) => {
+        acc[status.name] = { count: 0, color: status.color };
+        return acc;
+    }, {} as { [key: string]: { count: number, color: string } });
 
     project.tasks.forEach(task => {
-      if (statusCounts[task.status] !== undefined) {
-        statusCounts[task.status]++;
+      if (statusCounts[task.status]) {
+        statusCounts[task.status].count++;
       }
     });
 
-    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  }, [project.tasks]);
+    return Object.entries(statusCounts).map(([name, { count, color }]) => ({ name, value: count, fill: color }));
+  }, [project.tasks, project.configuration.statuses]);
 
   return (
     <div className='printable' ref={printableRef}>
@@ -86,7 +77,7 @@ export function ChartsTab({ project }: ChartsTabProps) {
                     <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
                     <Pie data={statusChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
                       {statusChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={statusColors[entry.name]} />
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
                      <Legend />

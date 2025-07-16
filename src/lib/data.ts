@@ -1,4 +1,4 @@
-import type { Project, User } from './types';
+import type { Project, User, ProjectConfiguration } from './types';
 
 export const users: User[] = [
   { id: 'user-1', name: 'Alice', avatar: '/avatars/01.png' },
@@ -6,6 +6,25 @@ export const users: User[] = [
   { id: 'user-3', name: 'Charlie', avatar: '/avatars/03.png' },
   { id: 'user-4', name: 'Diana', avatar: '/avatars/04.png' },
 ];
+
+export const defaultConfiguration: ProjectConfiguration = {
+    statuses: [
+        { id: 'status-1', name: 'A Fazer', color: '#808080', isDefault: true },
+        { id: 'status-2', name: 'Em Andamento', color: '#3b82f6' },
+        { id: 'status-3', name: 'Concluído', color: '#22c55e', isCompleted: true },
+        { id: 'status-4', name: 'Bloqueado', color: '#ef4444' },
+    ],
+    visibleKpis: {
+        totalTasks: true,
+        completedTasks: true,
+        overallProgress: true,
+        plannedBudget: true,
+        actualCost: true,
+        costVariance: true,
+        spi: true,
+        cpi: true,
+    }
+}
 
 export const projects: Project[] = [
   {
@@ -20,6 +39,7 @@ export const projects: Project[] = [
     actualEndDate: '2024-07-15',
     plannedBudget: 500000,
     actualCost: 550000,
+    configuration: defaultConfiguration,
     customFieldDefinitions: [
       { id: 'sprint', name: 'Sprint', type: 'text' },
     ],

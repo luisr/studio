@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -20,6 +20,7 @@ import { BacklogView } from "./backlog-view";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import { ImportTasksModal, Mapping, TaskField } from "./import-tasks-modal";
+import { ProjectSettingsModal } from "./project-settings-modal";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -45,18 +46,20 @@ const nestTasks = (tasks: Task[]): Task[] => {
     return rootTasks;
 };
 
-const calculateTotalProgress = (tasks: Task[]): number => {
+const calculateTotalProgress = (tasks: Task[], config: ProjectConfiguration): number => {
     if (!tasks || tasks.length === 0) return 0;
     
     const rootTasks = nestTasks(tasks);
 
     const calculateWeightedProgress = (taskNode: Task): { progress: number, totalHours: number } => {
-        if (!taskNode.subTasks || taskNode.subTasks.length === 0) {
-            const progress = taskNode.status === 'Concluído' ? 100 : 0;
+        const subTasks = (taskNode as any).subTasks;
+        if (!subTasks || subTasks.length === 0) {
+            const completedStatus = config.statuses.find(s => s.isCompleted);
+            const progress = (completedStatus && taskNode.status === completedStatus.name) ? 100 : 0;
             return { progress: progress * (taskNode.plannedHours || 1), totalHours: taskNode.plannedHours || 1 };
         }
 
-        const subTasksResult = taskNode.subTasks.reduce((acc, subTask) => {
+        const subTasksResult = subTasks.reduce((acc: any, subTask: any) => {
             const result = calculateWeightedProgress(subTask);
             acc.progress += result.progress;
             acc.totalHours += result.totalHours;
@@ -83,6 +86,7 @@ const calculateTotalProgress = (tasks: Task[]): number => {
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
@@ -117,6 +121,17 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       actualCost: newActualCost,
     }));
   }, []);
+  
+  const handleConfigUpdate = (newConfig: ProjectConfiguration) => {
+    setProject(prevProject => ({
+      ...prevProject,
+      configuration: newConfig
+    }));
+     toast({
+        title: "Configurações Salvas",
+        description: "As configurações do projeto foram atualizadas.",
+    });
+  };
 
    const handleSaveBaseline = () => {
     const tasksWithBaseline = project.tasks.map(task => ({
@@ -374,9 +389,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     task[taskField] = String(value);
                     break;
                 case 'status':
-                    if (['A Fazer', 'Em Andamento', 'Concluído', 'Bloqueado'].includes(value)) {
-                       task.status = value as Task['status'];
-                    }
+                    task.status = String(value);
                     break;
                 case 'priority':
                     if (['Baixa', 'Média', 'Alta'].includes(value)) {
@@ -420,7 +433,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         if (!task.id) task.id = `task-${Date.now()}-${Math.random()}`;
         if (!task.name) task.name = "Tarefa importada sem nome";
         if (!task.assignee) task.assignee = project.team[0];
-        if (!task.status) task.status = 'A Fazer';
+        if (!task.status) task.status = project.configuration.statuses.find(s => s.isDefault)?.name || 'A Fazer';
         if (!task.plannedStartDate) task.plannedStartDate = new Date().toISOString();
         if (!task.plannedEndDate) task.plannedEndDate = new Date().toISOString();
         if (task.plannedHours === undefined) task.plannedHours = 0;
@@ -448,11 +461,17 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setCsvData([]);
     setCsvHeaders([]);
   };
+
+  const formatCurrency = (value: number) => {
+    if(!isClient) return 'R$ ...';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }
   
   const projectKPIs = useMemo(() => {
     const tasks = project.tasks;
-    const completedTasks = tasks.filter(t => t.status === 'Concluído').length;
-    const overallProgress = calculateTotalProgress(tasks);
+    const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
+    const completedTasks = completedStatus ? tasks.filter(t => t.status === completedStatus.name).length : 0;
+    const overallProgress = calculateTotalProgress(tasks, project.configuration);
     
     const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
@@ -463,22 +482,21 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     const cpi = totalActualHours > 0 && earnedValue > 0 ? (earnedValue / totalActualHours) : 1;
     
     return {
-      totalTasks: tasks.length,
-      completedTasks: completedTasks,
-      overallProgress: `${overallProgress}%`,
-      plannedBudget: project.plannedBudget,
-      actualCost: project.actualCost,
-      costVariance: project.plannedBudget - project.actualCost,
-      spi: spi.toFixed(2),
-      cpi: cpi.toFixed(2),
+      totalTasks: { title: 'Total de Atividades', value: tasks.length, icon: ListTodo, color: 'blue' },
+      completedTasks: { title: 'Atividades Concluídas', value: completedTasks, icon: CheckCircle, color: 'green' },
+      overallProgress: { title: 'Conclusão Geral', value: `${overallProgress}%`, icon: BarChart, color: 'purple' },
+      plannedBudget: { title: 'Custo Planejado', value: formatCurrency(project.plannedBudget), icon: DollarSign, color: 'blue' },
+      actualCost: { title: 'Custo Real', value: formatCurrency(project.actualCost), icon: DollarSign, color: 'orange' },
+      costVariance: { title: 'Desvio de Custo', value: formatCurrency(project.plannedBudget - project.actualCost), icon: AlertTriangle, color: (project.plannedBudget - project.actualCost) < 0 ? 'red' : 'green' },
+      spi: { title: 'SPI (Prazo)', value: spi.toFixed(2), icon: Clock, color: spi < 1 ? 'red' : 'green' },
+      cpi: { title: 'CPI (Custo)', value: cpi.toFixed(2), icon: Target, color: cpi < 1 ? 'red' : 'green' },
     }
 
-  }, [project.tasks, project.plannedBudget, project.actualCost]);
+  }, [project, isClient]);
 
-  const formatCurrency = (value: number) => {
-    if(!isClient) return 'R$ ...';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  }
+  const visibleKpis = useMemo(() => {
+    return Object.entries(projectKPIs).filter(([key]) => project.configuration.visibleKpis[key]);
+  }, [projectKPIs, project.configuration.visibleKpis]);
 
   if (!isClient) {
     return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
@@ -492,17 +510,13 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
           onNewTaskClick={handleCreateTask} 
           onImport={handleFileSelect}
           onExport={handleExportTasks}
+          onSettingsClick={() => setIsSettingsOpen(true)}
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <KpiCard title="Total de Atividades" value={projectKPIs.totalTasks} icon={ListTodo} color="blue" />
-            <KpiCard title="Atividades Concluídas" value={projectKPIs.completedTasks} icon={CheckCircle} color="green" />
-            <KpiCard title="Conclusão Geral" value={projectKPIs.overallProgress} icon={BarChart} color="purple" />
-            <KpiCard title="Custo Planejado" value={formatCurrency(projectKPIs.plannedBudget)} icon={DollarSign} color="blue" />
-            <KpiCard title="Custo Real" value={formatCurrency(projectKPIs.actualCost)} icon={DollarSign} color="orange" />
-            <KpiCard title="Desvio de Custo" value={formatCurrency(projectKPIs.costVariance)} icon={AlertTriangle} color={projectKPIs.costVariance < 0 ? "red" : "green"} />
-            <KpiCard title="SPI (Prazo)" value={projectKPIs.spi} icon={Clock} color={parseFloat(projectKPIs.spi) < 1 ? "red" : "green"} />
-            <KpiCard title="CPI (Custo)" value={projectKPIs.cpi} icon={Target} color={parseFloat(projectKPIs.cpi) < 1 ? "red" : "green"} />
+            {visibleKpis.map(([key, kpi]) => (
+                <KpiCard key={key} title={kpi.title} value={kpi.value} icon={kpi.icon} color={kpi.color as any} />
+            ))}
           </div>
           
           <Tabs defaultValue="tabela">
@@ -533,11 +547,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             </div>
             <TabsContent value="tabela">
               <Card>
-                <TaskFilters tasks={nestedTasks} onFilterChange={setFilteredTasks} />
+                <TaskFilters project={project} onFilterChange={setFilteredTasks} />
                 <CardContent className="p-0">
                   <TasksTable 
                     tasks={filteredTasks} 
-                    allTasks={project.tasks} 
                     project={project}
                     onTasksChange={handleTaskUpdate} 
                     onEditTask={handleEditTask}
@@ -569,14 +582,19 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         onOpenChange={setIsFormOpen}
         onSave={handleSaveTask}
         task={editingTask}
-        users={project.team}
-        allTasks={project.tasks}
+        project={project}
       />
       <ImportTasksModal
         isOpen={isImportModalOpen}
         onOpenChange={setImportModalOpen}
         csvHeaders={csvHeaders}
         onConfirm={handleImportConfirm}
+      />
+      <ProjectSettingsModal
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        projectConfiguration={project.configuration}
+        onSave={handleConfigUpdate}
       />
     </>
   );

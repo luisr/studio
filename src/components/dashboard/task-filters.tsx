@@ -2,14 +2,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import type { Task } from "@/lib/types";
+import type { Task, Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search } from "lucide-react";
 
 interface TaskFiltersProps {
-    tasks: Task[];
+    project: Project;
     onFilterChange: (filteredTasks: Task[]) => void;
 }
 
@@ -35,15 +35,28 @@ const filterTasksRecursive = (tasks: Task[], searchTerm: string, statusFilter: s
     return results;
 };
 
-export function TaskFilters({ tasks, onFilterChange }: TaskFiltersProps) {
+export function TaskFilters({ project, onFilterChange }: TaskFiltersProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    const filtered = filterTasksRecursive(tasks, searchTerm, statusFilter);
-    onFilterChange(filtered);
+  const nestedTasks = useMemo(() => {
+    const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
+    project.tasks.forEach(task => taskMap.set(task.id, { ...task, subTasks: [] }));
+    const rootTasks: (Task & { subTasks: Task[] })[] = [];
+    taskMap.forEach(task => {
+        if (task.parentId && taskMap.has(task.parentId)) {
+            taskMap.get(task.parentId)?.subTasks.push(task);
+        } else {
+            rootTasks.push(task);
+        }
+    });
+    return rootTasks;
+  }, [project.tasks]);
 
-  }, [searchTerm, statusFilter, tasks, onFilterChange]);
+  useEffect(() => {
+    const filtered = filterTasksRecursive(nestedTasks, searchTerm, statusFilter);
+    onFilterChange(filtered);
+  }, [searchTerm, statusFilter, nestedTasks, onFilterChange]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -71,10 +84,9 @@ export function TaskFilters({ tasks, onFilterChange }: TaskFiltersProps) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
-                        <SelectItem value="A Fazer">A Fazer</SelectItem>
-                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                        <SelectItem value="Concluído">Concluído</SelectItem>
-                        <SelectItem value="Bloqueado">Bloqueado</SelectItem>
+                        {project.configuration.statuses.map(status => (
+                            <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Task, User } from "@/lib/types";
+import type { Task, User, Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,7 +42,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 const taskSchema = z.object({
   name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
   assignee: z.string().min(1, { message: "Selecione um responsável." }),
-  status: z.enum(["A Fazer", "Em Andamento", "Concluído", "Bloqueado"]),
+  status: z.string().min(1, { message: "Selecione um status." }),
   priority: z.enum(["Baixa", "Média", "Alta"]),
   plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
@@ -63,17 +63,18 @@ interface TaskFormProps {
   onOpenChange: (isOpen: boolean) => void;
   onSave: (data: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>) => void;
   task: Task | null;
-  users: User[];
-  allTasks: Task[];
+  project: Project;
 }
 
-export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }: TaskFormProps) {
+export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFormProps) {
+  const { team: users, tasks: allTasks, configuration } = project;
+  
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       name: "",
       assignee: "",
-      status: "A Fazer",
+      status: configuration.statuses.find(s => s.isDefault)?.name || "",
       priority: "Média",
       plannedHours: 0,
       actualHours: 0,
@@ -103,7 +104,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
         form.reset({
           name: "",
           assignee: "",
-          status: "A Fazer",
+          status: configuration.statuses.find(s => s.isDefault)?.name || "",
           priority: 'Média',
           plannedStartDate: new Date(),
           plannedEndDate: new Date(),
@@ -115,7 +116,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
         });
       }
     }
-  }, [task, form, isOpen]);
+  }, [task, form, isOpen, configuration]);
 
   const onSubmit = (data: TaskFormValues) => {
     const selectedUser = users.find(u => u.id === data.assignee);
@@ -195,10 +196,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="A Fazer">A Fazer</SelectItem>
-                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                        <SelectItem value="Concluído">Concluído</SelectItem>
-                        <SelectItem value="Bloqueado">Bloqueado</SelectItem>
+                        {configuration.statuses.map(status => (
+                           <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

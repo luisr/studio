@@ -22,13 +22,6 @@ interface GanttChartProps {
   onDeleteBaseline: () => void;
 }
 
-const statusColors: { [key: string]: string } = {
-  'A Fazer': 'bg-gray-400',
-  'Em Andamento': 'bg-blue-500',
-  'Concluído': 'bg-green-500',
-  'Bloqueado': 'bg-red-500',
-};
-
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
     tasks.forEach(t => taskMap.set(t.id, { ...t, subTasks: [] }));
@@ -64,6 +57,13 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
 export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
   const printableRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<ZoomLevel>('day');
+
+  const statusColorMap = useMemo(() => {
+    return project.configuration.statuses.reduce((acc, status) => {
+        acc[status.name] = status.color;
+        return acc;
+    }, {} as Record<string, string>);
+  }, [project.configuration.statuses]);
   
   const { tasks, overallStartDate, overallEndDate } = useMemo(() => {
     const nested = nestTasks(project.tasks);
@@ -131,32 +131,6 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
         };
     }
   }, [overallStartDate, overallEndDate, zoom]);
-
-  const getGridPosition = (startDate: Date, endDate: Date) => {
-    const start = startOfDay(startDate);
-    const end = startOfDay(endDate);
-    
-    let gridColumnStart, gridColumnEnd;
-
-    switch (zoom) {
-      case 'month':
-        gridColumnStart = Math.floor(differenceInDays(start, startOfMonth(overallStartDate)) / 30);
-        gridColumnEnd = gridColumnStart + Math.max(1, Math.floor(differenceInDays(end, start) / 30));
-        break;
-      case 'week':
-        gridColumnStart = Math.floor(differenceInDays(start, startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7);
-        gridColumnEnd = gridColumnStart + Math.max(1, Math.floor(differenceInDays(end, start) / 7));
-        break;
-      case 'day':
-      default:
-        gridColumnStart = differenceInDays(start, overallStartDate);
-        gridColumnEnd = differenceInDays(end, start) + gridColumnStart + 1;
-    }
-    
-    return {
-      gridColumn: `${gridColumnStart + 2} / span ${gridColumnEnd - gridColumnStart}`,
-    };
-  };
 
   const todayIndex = useMemo(() => {
     if (!overallStartDate || !isFinite(overallStartDate.getTime())) return -1;
@@ -367,8 +341,9 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                             <Tooltip>
                               <TooltipTrigger asChild>
                                  <div
-                                  className={cn("absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2", statusColors[task.status] || 'bg-gray-400')}
+                                  className={cn("absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2")}
                                   style={{
+                                      backgroundColor: statusColorMap[task.status] || '#808080',
                                       left: `calc(${barStart / totalColumns * 100}% + 2px)`,
                                       width: `calc(${barDuration / totalColumns * 100}% - 4px)`
                                   }}

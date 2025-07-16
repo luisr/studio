@@ -19,11 +19,24 @@ export interface CustomFieldDefinition {
   type: 'text' | 'number' | 'date';
 }
 
+export interface StatusDefinition {
+    id: string;
+    name: string;
+    color: string;
+    isCompleted?: boolean;
+    isDefault?: boolean;
+}
+
+export interface ProjectConfiguration {
+    statuses: StatusDefinition[];
+    visibleKpis: Record<string, boolean>;
+}
+
 export interface Task {
   id: string;
   name: string;
   assignee: User;
-  status: 'A Fazer' | 'Em Andamento' | 'Concluído' | 'Bloqueado';
+  status: string; // Changed from enum to string to allow custom statuses
   plannedStartDate: string;
   plannedEndDate: string;
   actualStartDate?: string;
@@ -61,4 +74,5 @@ export interface Project {
   };
   baselineSavedAt?: string;
   customFieldDefinitions?: CustomFieldDefinition[];
+  configuration: ProjectConfiguration;
 }
