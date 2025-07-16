@@ -32,8 +32,8 @@ export function DashboardSidebar() {
   const navLinks = [
     { href: "/dashboard", label: "Dashboard Macro", icon: LayoutDashboard },
     { href: "/dashboard/projects", label: "Projetos", icon: Folder },
+    { href: "/dashboard/reports", label: "Relatórios", icon: FileText },
     { href: "#", label: "Tarefas", icon: CheckSquare },
-    { href: "#", label: "Relatórios", icon: FileText },
     { href: "#", label: "Usuários", icon: Users },
   ];
 
@@ -69,7 +69,7 @@ export function DashboardSidebar() {
                         href={link.href}
                         className={cn(
                         "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                        (pathname.startsWith(link.href) && link.href.length > 10) || pathname === link.href
+                        (pathname.startsWith(link.href) && (link.href.length > 10 || link.href === "/dashboard/reports")) || pathname === link.href
                             ? "bg-primary/10 text-primary"
                             : "hover:bg-muted"
                         )}
