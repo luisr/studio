@@ -19,19 +19,18 @@ import { RoadmapView } from "./roadmap-view";
 import { BacklogView } from "./backlog-view";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import { ImportTasksModal, TaskField } from "./import-tasks-modal";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
     
-    // Primeiro, cria um mapa de todas as tarefas para fácil acesso
     tasks.forEach(task => {
         taskMap.set(task.id, { ...task, subTasks: [] });
     });
 
     const rootTasks: (Task & { subTasks: Task[] })[] = [];
 
-    // Em seguida, percorre o mapa para construir a árvore
     taskMap.forEach(task => {
         if (task.parentId && taskMap.has(task.parentId)) {
             const parent = taskMap.get(task.parentId);
@@ -53,6 +52,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
   
+  // State for import modal
+  const [isImportModalOpen, setImportModalOpen] = useState(false);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  
   const nestedTasks = useMemo(() => nestTasks(project.tasks), [project.tasks]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestedTasks);
 
@@ -65,13 +69,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }, [nestedTasks]);
 
 
-  // Atualiza o estado do projeto se a propriedade inicial mudar
+  // Update project state if initial prop changes
   useEffect(() => {
     setProject(initialProject);
   }, [initialProject]);
 
   const handleTaskUpdate = useCallback((updatedTasks: Task[]) => {
-    // This function now receives and sets a flat list of tasks
     setProject(prevProject => ({ ...prevProject, tasks: updatedTasks }));
   }, []);
 
@@ -115,7 +118,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     let flatTasks = [...project.tasks];
     let updatedTaskData = { ...taskData };
 
-    // Lógica de ajuste de data com base nas dependências
     if (updatedTaskData.dependencies && updatedTaskData.dependencies.length > 0) {
         const dependencyEndDates = updatedTaskData.dependencies
             .map(depId => flatTasks.find(t => t.id === depId))
@@ -126,7 +128,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             const latestDependencyEndDate = max(dependencyEndDates);
             const newStartDate = addDays(latestDependencyEndDate, 1);
             
-            // Se a data de início planejada for anterior à nova data de início, ajuste-a
             if (parseISO(updatedTaskData.plannedStartDate) < newStartDate) {
                 const duration = parseISO(updatedTaskData.plannedEndDate).getTime() - parseISO(updatedTaskData.plannedStartDate).getTime();
                 updatedTaskData.plannedStartDate = newStartDate.toISOString();
@@ -138,7 +139,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
     let newTasks: Task[];
     if (editingTask) {
-        // Lógica de atualização
         newTasks = flatTasks.map(t => {
             if (t.id === editingTask.id) {
                 const newChangeHistory = [...(t.changeHistory || [])];
@@ -161,7 +161,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             return t;
         });
     } else {
-        // Lógica de criação
         const newTask: Task = {
             ...updatedTaskData,
             id: `task-${Date.now()}`,
@@ -204,7 +203,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     getChildIds(taskId);
     
     let newTasks = flatTasks.filter(t => !childIdsToDelete.has(t.id));
-    // Remover a tarefa deletada das dependências de outras tarefas
     newTasks = newTasks.map(t => ({
       ...t,
       dependencies: t.dependencies.filter(depId => !childIdsToDelete.has(depId))
@@ -252,7 +250,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
   };
   
-  const handleImportTasks = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -260,41 +258,17 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-            const importedData = results.data as any[];
-            const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
-
-            const newTasks: Task[] = importedData.map(item => {
-                const assignee = usersMap.get(item.assignee_id) || project.team[0]; // Fallback to first user
-                return {
-                    id: item.id || `task-${Date.now()}-${Math.random()}`,
-                    name: item.name,
-                    assignee: assignee,
-                    status: item.status || 'A Fazer',
-                    priority: item.priority || 'Média',
-                    plannedStartDate: item.plannedStartDate,
-                    plannedEndDate: item.plannedEndDate,
-                    actualStartDate: item.actualStartDate || undefined,
-                    actualEndDate: item.actualEndDate || undefined,
-                    plannedHours: Number(item.plannedHours) || 0,
-                    actualHours: Number(item.actualHours) || 0,
-                    dependencies: item.dependencies ? item.dependencies.split(',') : [],
-                    isCritical: item.isCritical === 'true',
-                    parentId: item.parentId || null,
-                    isMilestone: item.isMilestone === 'true',
-                    baselineStartDate: item.baselineStartDate || undefined,
-                    baselineEndDate: item.baselineEndDate || undefined,
-                    changeHistory: [], // Histórico zerado na importação
-                    subTasks: []
-                };
-            });
-            
-            const allTasks = [...project.tasks, ...newTasks];
-            handleTaskUpdate(allTasks);
-
-            toast({
-                title: "Importação Concluída",
-                description: `${newTasks.length} tarefas foram importadas com sucesso.`,
-            });
+            if (results.meta.fields) {
+                setCsvHeaders(results.meta.fields);
+                setCsvData(results.data);
+                setImportModalOpen(true);
+            } else {
+                 toast({
+                    title: "Erro na Importação",
+                    description: "Não foi possível ler os cabeçalhos do arquivo CSV.",
+                    variant: "destructive"
+                });
+            }
         },
         error: (error) => {
             console.error("Error parsing CSV:", error);
@@ -305,9 +279,95 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             });
         }
     });
-
     // Reset file input
     event.target.value = '';
+  };
+  
+  const handleImportConfirm = (mapping: Record<string, TaskField>) => {
+    const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
+    const usersByNameMap = new Map<string, User>(project.team.map(u => [u.name.toLowerCase(), u]));
+
+    const newTasks: Task[] = csvData.map(row => {
+        const task: Partial<Task> = {};
+        
+        for (const csvHeader in mapping) {
+            const taskField = mapping[csvHeader];
+            const value = row[csvHeader];
+
+            if (value === null || value === undefined || value === '') continue;
+
+            switch (taskField) {
+                case 'id':
+                case 'name':
+                    task[taskField] = String(value);
+                    break;
+                case 'status':
+                    if (['A Fazer', 'Em Andamento', 'Concluído', 'Bloqueado'].includes(value)) {
+                       task.status = value as Task['status'];
+                    }
+                    break;
+                case 'priority':
+                    if (['Baixa', 'Média', 'Alta'].includes(value)) {
+                        task.priority = value as Task['priority'];
+                    }
+                    break;
+                case 'assignee':
+                    const foundUser = usersByNameMap.get(String(value).toLowerCase()) || usersMap.get(String(value));
+                    if (foundUser) task.assignee = foundUser;
+                    break;
+                case 'plannedStartDate':
+                case 'plannedEndDate':
+                case 'actualStartDate':
+                case 'actualEndDate':
+                    const date = parseISO(value);
+                    if (!isNaN(date.getTime())) {
+                        task[taskField] = date.toISOString();
+                    }
+                    break;
+                case 'plannedHours':
+                case 'actualHours':
+                    const hours = parseFloat(value);
+                    if (!isNaN(hours)) task[taskField] = hours;
+                    break;
+                case 'dependencies':
+                    task.dependencies = String(value).split(',').map(s => s.trim()).filter(Boolean);
+                    break;
+                case 'parentId':
+                    task.parentId = String(value);
+                    break;
+                case 'isMilestone':
+                case 'isCritical':
+                    task[taskField] = String(value).toLowerCase() === 'true';
+                    break;
+            }
+        }
+        
+        // Add default values for required fields if they are missing
+        if (!task.id) task.id = `task-${Date.now()}-${Math.random()}`;
+        if (!task.name) task.name = "Tarefa importada sem nome";
+        if (!task.assignee) task.assignee = project.team[0];
+        if (!task.status) task.status = 'A Fazer';
+        if (!task.plannedStartDate) task.plannedStartDate = new Date().toISOString();
+        if (!task.plannedEndDate) task.plannedEndDate = new Date().toISOString();
+        if (task.plannedHours === undefined) task.plannedHours = 0;
+        if (task.actualHours === undefined) task.actualHours = 0;
+        if (!task.dependencies) task.dependencies = [];
+        if (!task.changeHistory) task.changeHistory = [];
+
+        return task as Task;
+    });
+
+    const allTasks = [...project.tasks, ...newTasks];
+    handleTaskUpdate(allTasks);
+
+    toast({
+        title: "Importação Concluída",
+        description: `${newTasks.length} tarefas foram importadas com sucesso.`,
+    });
+
+    setImportModalOpen(false);
+    setCsvData([]);
+    setCsvHeaders([]);
   };
 
   const calculateTotalProgress = useMemo(() => {
@@ -374,7 +434,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         <ProjectHeader 
           project={project} 
           onNewTaskClick={handleCreateTask} 
-          onImport={handleImportTasks}
+          onImport={handleFileSelect}
           onExport={handleExportTasks}
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
@@ -454,6 +514,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         task={editingTask}
         users={project.team}
         allTasks={project.tasks}
+      />
+      <ImportTasksModal
+        isOpen={isImportModalOpen}
+        onOpenChange={setImportModalOpen}
+        csvHeaders={csvHeaders}
+        onConfirm={handleImportConfirm}
       />
     </>
   );
