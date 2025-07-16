@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
-  const [project, setProject] = useState<Project | undefined>(
+  const [project, setProject] = useState<Project | undefined>(() => 
     initialProjects.find((p) => p.id === params.id)
   );
   
@@ -94,11 +94,13 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
-    // Defer rendering of locale-specific currency until client-side hydration
-    if (typeof window === 'undefined') {
-      return `R$ ${value.toFixed(2)}`;
-    }
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const [formattedValue, setFormattedValue] = useState(`R$ ${value.toFixed(2)}`);
+
+    useEffect(() => {
+      setFormattedValue(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value));
+    }, [value]);
+  
+    return formattedValue;
   }
 
   return (
