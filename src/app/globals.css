@@ -67,3 +67,42 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .printable {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+  }
+}
+
+
+@media print {
+  body {
+    background-color: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .printable {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .printable .recharts-responsive-container {
+    width: 100% !important;
+    height: 400px !important; /* Adjust as needed */
+  }
+  .printable .overflow-x-auto {
+    overflow-x: visible !important;
+  }
+   @page {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+}

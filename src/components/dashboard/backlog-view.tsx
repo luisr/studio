@@ -3,10 +3,11 @@
 
 import type { Project, Task } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Badge } from "../ui/badge";
 import { UserCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { ViewActions } from "./view-actions";
 
 interface BacklogViewProps {
   project: Project;
@@ -26,6 +27,7 @@ const priorityOrder = {
 
 
 export function BacklogView({ project }: BacklogViewProps) {
+  const printableRef = useRef<HTMLDivElement>(null);
     
   const backlogTasks = useMemo(() => {
     return project.tasks
@@ -39,13 +41,16 @@ export function BacklogView({ project }: BacklogViewProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Backlog do Projeto</CardTitle>
-        <CardDescription>
-          Lista de todas as tarefas com status "A Fazer", priorizadas para planejamento.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+          <CardTitle>Backlog do Projeto</CardTitle>
+          <CardDescription>
+            Lista de todas as tarefas com status "A Fazer", priorizadas para planejamento.
+          </CardDescription>
+        </div>
+        <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent>
+      <CardContent ref={printableRef}>
         {backlogTasks.length > 0 ? (
           <div className="space-y-4">
             {backlogTasks.map(task => (

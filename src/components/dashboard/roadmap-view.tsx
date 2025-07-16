@@ -3,16 +3,19 @@
 
 import type { Project, Task } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { getQuarter, format, startOfQuarter, endOfQuarter, eachQuarterOfInterval, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import { Target } from "lucide-react";
+import { ViewActions } from "./view-actions";
 
 interface RoadmapViewProps {
   project: Project;
 }
 
 export function RoadmapView({ project }: RoadmapViewProps) {
+  const printableRef = useRef<HTMLDivElement>(null);
+
   const { quarters, milestonesByQuarter } = useMemo(() => {
     const milestones = project.tasks.filter(task => task.isMilestone);
     if (milestones.length === 0) {
@@ -49,13 +52,16 @@ export function RoadmapView({ project }: RoadmapViewProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Roadmap do Projeto</CardTitle>
-        <CardDescription>
-          Uma visão de alto nível dos principais marcos (milestones) do projeto ao longo do tempo.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+          <CardTitle>Roadmap do Projeto</CardTitle>
+          <CardDescription>
+            Uma visão de alto nível dos principais marcos (milestones) do projeto ao longo do tempo.
+          </CardDescription>
+        </div>
+        <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className="overflow-x-auto" ref={printableRef}>
         <div className="flex gap-6">
           {quarters.map((quarter, index) => {
             const milestones = milestonesByQuarter.get(quarter);

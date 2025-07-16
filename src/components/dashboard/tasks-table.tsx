@@ -1,7 +1,7 @@
 // src/components/dashboard/tasks-table.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Task } from "@/lib/types";
 import {
   Table,
@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, GripVertical, CornerDownRight, Target, ChevronRight } from "lucide-react";
+import { Edit, Trash2, CornerDownRight, Target, ChevronRight, Printer, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { TasksTableToolbar } from './tasks-table-toolbar';
+import { ViewActions } from './view-actions';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -54,6 +55,7 @@ const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
 export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const printableRef = useRef<HTMLDivElement>(null);
 
   // Expand all by default
   useEffect(() => {
@@ -204,7 +206,7 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
           <TableCell>
-            <div className="flex gap-1">
+            <div className="flex gap-1 no-print">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -236,25 +238,29 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
   };
 
   return (
-    <div className="w-full overflow-x-auto">
-       <TasksTableToolbar onExpandAll={expandAll} onCollapseAll={collapseAll} />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[40%]">Atividade</TableHead>
-            <TableHead>Responsável</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Prioridade</TableHead>
-            <TableHead>Data Fim Plan.</TableHead>
-            <TableHead>CPI</TableHead>
-            <TableHead>SPI</TableHead>
-            <TableHead>Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map(task => renderTask(task))}
-        </TableBody>
-      </Table>
+    <div className="w-full">
+       <TasksTableToolbar onExpandAll={expandAll} onCollapseAll={collapseAll}>
+          <ViewActions contentRef={printableRef} />
+       </TasksTableToolbar>
+       <div className="overflow-x-auto printable" ref={printableRef}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[40%]">Atividade</TableHead>
+              <TableHead>Responsável</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Prioridade</TableHead>
+              <TableHead>Data Fim Plan.</TableHead>
+              <TableHead>CPI</TableHead>
+              <TableHead>SPI</TableHead>
+              <TableHead className='no-print'>Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map(task => renderTask(task))}
+          </TableBody>
+        </Table>
+       </div>
     </div>
   );
 }

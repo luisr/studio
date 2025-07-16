@@ -1,7 +1,7 @@
 // src/components/dashboard/ai-analysis-tab.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { summarizeProjectStatus } from "@/ai/flows/summarize-project-status";
 import { predictProjectRisks } from "@/ai/flows/predict-project-risks";
 import { generateLessonsLearned } from "@/ai/flows/generate-lessons-learned";
 import { Loader2, Sparkles, AlertTriangle, GraduationCap } from "lucide-react";
+import { ViewActions } from "./view-actions";
 
 interface AiAnalysisTabProps {
   project: Project;
@@ -32,6 +33,7 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [results, setResults] = useState<{ [key: string]: any }>({});
   const [error, setError] = useState<string | null>(null);
+  const printableRef = useRef<HTMLDivElement>(null);
 
   const handleSummarize = async () => {
     setLoading("summary");
@@ -91,18 +93,21 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Análise Preditiva e Insights com IA</CardTitle>
-        <CardDescription>
-          Use o poder da IA para obter resumos, prever riscos e aprender com os dados do seu projeto.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+          <CardTitle>Análise Preditiva e Insights com IA</CardTitle>
+          <CardDescription>
+            Use o poder da IA para obter resumos, prever riscos e aprender com os dados do seu projeto.
+          </CardDescription>
+        </div>
+        <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent className="space-y-8">
+      <CardContent className="space-y-8" ref={printableRef}>
         {error && <p className="text-destructive text-sm text-center">{error}</p>}
 
         {/* Resumo do Status */}
         <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 no-print">
                 <div className="flex-shrink-0 bg-primary/10 text-primary rounded-full p-3">
                     <Sparkles className="h-6 w-6" />
                 </div>
@@ -125,7 +130,7 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
 
         {/* Previsão de Riscos */}
          <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 no-print">
                 <div className="flex-shrink-0 bg-destructive/10 text-destructive rounded-full p-3">
                     <AlertTriangle className="h-6 w-6" />
                 </div>
@@ -148,7 +153,7 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
         
         {/* Lições Aprendidas */}
         <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 no-print">
                 <div className="flex-shrink-0 bg-purple-500/10 text-purple-600 rounded-full p-3">
                     <GraduationCap className="h-6 w-6" />
                 </div>

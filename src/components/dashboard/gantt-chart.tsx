@@ -1,7 +1,7 @@
 // src/components/dashboard/gantt-chart.tsx
 "use client"
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import type { Project, Task } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { eachDayOfInterval, format, differenceInDays, startOfDay } from 'date-fns';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Save, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import { ViewActions } from './view-actions';
 
 
 interface GanttChartProps {
@@ -59,6 +60,8 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
 
 
 export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
+  const printableRef = useRef<HTMLDivElement>(null);
+  
   const { tasks, startDate, endDate, totalDays, dateArray } = useMemo(() => {
     const nested = nestTasks(project.tasks);
     const flattened = flattenNestedTasks(nested);
@@ -107,7 +110,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
 
   return (
     <Card>
-      <CardHeader className='flex-row items-center justify-between'>
+      <CardHeader className='flex-row items-start justify-between'>
         <div>
           <CardTitle>Gráfico de Gantt</CardTitle>
           <CardDescription>
@@ -117,7 +120,8 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
             }
           </CardDescription>
         </div>
-         <div className='flex gap-2'>
+        <div className='flex items-center gap-2 no-print'>
+            <ViewActions contentRef={printableRef} />
             <Button onClick={onSaveBaseline} variant="outline" size="sm">
                 <Save className='mr-2' />
                 Salvar Linha de Base
@@ -144,7 +148,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
             </AlertDialog>
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className="overflow-x-auto printable" ref={printableRef}>
         <div className="relative inline-block min-w-full text-sm">
             <div 
               className="grid items-center"
