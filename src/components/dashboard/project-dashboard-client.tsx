@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import { ImportTasksModal, Mapping, TaskField } from "./import-tasks-modal";
 import { ProjectSettingsModal } from "./project-settings-modal";
+import { ProjectGalleryModal } from "./project-gallery-modal";
 import type { LucideIcon } from "lucide-react";
 
 
@@ -92,6 +93,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const [project, setProject] = useState<Project>(initialProject);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
@@ -103,6 +105,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   
   const nestedTasks = useMemo(() => nestTasks(project.tasks), [project.tasks]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestedTasks);
+
+  const allAttachments = useMemo(() => {
+    return project.tasks.flatMap(task => task.attachments || []);
+  }, [project.tasks]);
 
   useEffect(() => {
     setIsClient(true);
@@ -205,6 +211,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
                 (Object.keys(updatedTaskData) as Array<keyof typeof updatedTaskData>).forEach(key => {
                     const typedKey = key as keyof Task;
+                     if (key === 'attachments') return; // Skip attachment comparison here
                     // Compare string representations to handle different types (dates, objects etc.)
                     const oldValueStr = JSON.stringify(t[typedKey]);
                     const newValueStr = JSON.stringify(updatedTaskData[typedKey]);
@@ -613,6 +620,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
           onImport={handleFileSelect}
           onExport={handleExportTasks}
           onSettingsClick={() => setIsSettingsOpen(true)}
+          onGalleryClick={() => setIsGalleryOpen(true)}
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -699,6 +707,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         projectConfiguration={project.configuration}
         onSave={handleConfigUpdate}
       />
+      <ProjectGalleryModal
+        isOpen={isGalleryOpen}
+        onOpenChange={setIsGalleryOpen}
+        attachments={allAttachments}
+       />
     </>
   );
 }

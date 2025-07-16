@@ -14,6 +14,16 @@ export interface User {
   role?: 'Admin' | 'Editor' | 'Viewer'; // Role within a project
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string; // data URI
+  type: string; // MIME type
+  taskId: string;
+  taskName: string;
+  timestamp: string;
+}
+
 export interface CustomFieldDefinition {
   id: string;
   name: string;
@@ -83,6 +93,7 @@ export interface Task {
   baselineEndDate?: string;
   priority?: 'Alta' | 'Média' | 'Baixa';
   customFields?: { [key: string]: string | number | boolean };
+  attachments?: Attachment[];
 }
 
 export interface Project {

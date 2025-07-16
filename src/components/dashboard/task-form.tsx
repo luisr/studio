@@ -1,11 +1,11 @@
 // src/components/dashboard/task-form.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Task, User, Project } from "@/lib/types";
+import type { Task, User, Project, Attachment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Paperclip, X } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, addDays } from "date-fns";
@@ -40,6 +40,7 @@ import { Switch } from "../ui/switch";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 type EffortUnit = 'hours' | 'days' | 'weeks' | 'months';
 
@@ -49,6 +50,16 @@ const conversionFactors: Record<EffortUnit, number> = {
   weeks: 40,
   months: 160, 
 };
+
+const attachmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  type: z.string(),
+  taskId: z.string(),
+  taskName: z.string(),
+  timestamp: z.string(),
+});
 
 const taskSchema = z.object({
   name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
@@ -72,6 +83,7 @@ const taskSchema = z.object({
   isMilestone: z.boolean().optional(),
   dependencies: z.array(z.string()).optional(),
   customFields: z.record(z.string(), z.any()).optional(),
+  attachments: z.array(attachmentSchema).optional(),
 }).refine(data => data.plannedEndDate >= data.plannedStartDate, {
     message: "A data de fim não pode ser anterior à data de início.",
     path: ["plannedEndDate"],
@@ -94,8 +106,20 @@ const getBestEffortUnit = (hours: number): { value: number, unit: EffortUnit } =
     return { value: hours, unit: 'hours' };
 }
 
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+
 export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFormProps) {
   const { team: users, tasks: allTasks, configuration } = project;
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -114,6 +138,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
       isMilestone: false,
       dependencies: [],
       customFields: {},
+      attachments: [],
     },
   });
 
@@ -144,6 +169,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           isMilestone: task.isMilestone,
           dependencies: task.dependencies || [],
           customFields: { ...defaultCustomFields, ...task.customFields },
+          attachments: task.attachments || [],
         });
       } else {
         form.reset({
@@ -163,6 +189,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           isMilestone: false,
           dependencies: [],
           customFields: defaultCustomFields,
+          attachments: [],
         });
       }
     }
@@ -208,7 +235,50 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
         plannedEndDate: data.plannedEndDate.toISOString(),
         dependencies: data.dependencies || [],
         customFields: data.customFields || {},
+        attachments: data.attachments || [],
     });
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    try {
+      const newAttachments: Attachment[] = await Promise.all(
+        Array.from(files).map(async file => {
+          const url = await fileToDataUrl(file);
+          return {
+            id: `att-${Date.now()}-${Math.random()}`,
+            name: file.name,
+            url,
+            type: file.type,
+            taskId: task?.id || 'new-task',
+            taskName: form.getValues('name') || 'Nova Tarefa',
+            timestamp: new Date().toISOString(),
+          };
+        })
+      );
+      
+      const currentAttachments = form.getValues('attachments') || [];
+      form.setValue('attachments', [...currentAttachments, ...newAttachments]);
+
+    } catch (error) {
+       toast({
+        title: "Erro no Upload",
+        description: "Falha ao ler o arquivo selecionado.",
+        variant: "destructive"
+      });
+      console.error(error);
+    }
+     // Reset file input to allow selecting the same file again
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    const currentAttachments = form.getValues('attachments') || [];
+    form.setValue('attachments', currentAttachments.filter(att => att.id !== id));
   };
 
   const possibleParents = allTasks.filter(t => t.id !== task?.id);
@@ -568,6 +638,41 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                   </FormItem>
                 )}
               />
+
+              {/* Attachments Section */}
+              <div className="space-y-2">
+                <FormLabel>Anexos</FormLabel>
+                <div className="space-y-2 rounded-lg border p-3">
+                  <FormField
+                    control={form.control}
+                    name="attachments"
+                    render={({ field }) => (
+                      <>
+                        {field.value && field.value.length > 0 ? (
+                          <div className="space-y-2">
+                            {field.value.map(att => (
+                              <div key={att.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">
+                                  {att.name}
+                                </a>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAttachment(att.id)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center p-2">Nenhum anexo.</p>
+                        )}
+                      </>
+                    )}
+                  />
+                   <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                    <Paperclip className="mr-2 h-4 w-4" /> Adicionar Anexo
+                  </Button>
+                  <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+                </div>
+              </div>
               
               {configuration.customFieldDefinitions && configuration.customFieldDefinitions.length > 0 && (
                 <div>
