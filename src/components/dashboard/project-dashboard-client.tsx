@@ -1,8 +1,8 @@
 // src/components/dashboard/project-dashboard-client.tsx
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import type { Project, Task } from "@/lib/types";
+import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
+import type { Project, Task, User } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -18,6 +18,7 @@ import { addDays, max, parseISO } from "date-fns";
 import { RoadmapView } from "./roadmap-view";
 import { BacklogView } from "./backlog-view";
 import { useToast } from "@/hooks/use-toast";
+import Papa from "papaparse";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -211,6 +212,103 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
     handleTaskUpdate(newTasks);
   };
+  
+  const handleExportTasks = () => {
+    const dataToExport = project.tasks.map(task => ({
+      id: task.id,
+      name: task.name,
+      assignee_id: task.assignee.id,
+      assignee_name: task.assignee.name,
+      status: task.status,
+      priority: task.priority || '',
+      plannedStartDate: task.plannedStartDate,
+      plannedEndDate: task.plannedEndDate,
+      actualStartDate: task.actualStartDate || '',
+      actualEndDate: task.actualEndDate || '',
+      plannedHours: task.plannedHours,
+      actualHours: task.actualHours,
+      dependencies: task.dependencies.join(','),
+      isCritical: task.isCritical,
+      parentId: task.parentId || '',
+      isMilestone: task.isMilestone || false,
+      baselineStartDate: task.baselineStartDate || '',
+      baselineEndDate: task.baselineEndDate || '',
+    }));
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'tarefas.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+     toast({
+        title: "Exportação Concluída",
+        description: "O arquivo CSV com as tarefas foi baixado.",
+    });
+  };
+  
+  const handleImportTasks = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+            const importedData = results.data as any[];
+            const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
+
+            const newTasks: Task[] = importedData.map(item => {
+                const assignee = usersMap.get(item.assignee_id) || project.team[0]; // Fallback to first user
+                return {
+                    id: item.id || `task-${Date.now()}-${Math.random()}`,
+                    name: item.name,
+                    assignee: assignee,
+                    status: item.status || 'A Fazer',
+                    priority: item.priority || 'Média',
+                    plannedStartDate: item.plannedStartDate,
+                    plannedEndDate: item.plannedEndDate,
+                    actualStartDate: item.actualStartDate || undefined,
+                    actualEndDate: item.actualEndDate || undefined,
+                    plannedHours: Number(item.plannedHours) || 0,
+                    actualHours: Number(item.actualHours) || 0,
+                    dependencies: item.dependencies ? item.dependencies.split(',') : [],
+                    isCritical: item.isCritical === 'true',
+                    parentId: item.parentId || null,
+                    isMilestone: item.isMilestone === 'true',
+                    baselineStartDate: item.baselineStartDate || undefined,
+                    baselineEndDate: item.baselineEndDate || undefined,
+                    changeHistory: [], // Histórico zerado na importação
+                    subTasks: []
+                };
+            });
+            
+            const allTasks = [...project.tasks, ...newTasks];
+            handleTaskUpdate(allTasks);
+
+            toast({
+                title: "Importação Concluída",
+                description: `${newTasks.length} tarefas foram importadas com sucesso.`,
+            });
+        },
+        error: (error) => {
+            console.error("Error parsing CSV:", error);
+            toast({
+                title: "Erro na Importação",
+                description: "Não foi possível ler o arquivo CSV. Verifique o formato.",
+                variant: "destructive"
+            });
+        }
+    });
+
+    // Reset file input
+    event.target.value = '';
+  };
 
   const calculateTotalProgress = useMemo(() => {
     const calculate = (tasks: Task[]): number => {
@@ -273,7 +371,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   return (
     <>
       <div className="flex flex-col h-full bg-background">
-        <ProjectHeader project={project} onNewTaskClick={handleCreateTask} />
+        <ProjectHeader 
+          project={project} 
+          onNewTaskClick={handleCreateTask} 
+          onImport={handleImportTasks}
+          onExport={handleExportTasks}
+        />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <KpiCard title="Total de Atividades" value={projectKPIs.totalTasks} icon={ListTodo} color="blue" />
