@@ -22,12 +22,15 @@ import { useToast } from "@/hooks/use-toast";
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
-    // Initialize every task with a subTasks array
-    tasks.forEach(t => taskMap.set(t.id, { ...t, subTasks: [] }));
+    const tasksWithoutParents: Task[] = [];
+    tasks.forEach(t => {
+      tasksWithoutParents.push(t);
+      taskMap.set(t.id, { ...t, subTasks: [] })
+    });
 
     const rootTasks: (Task & { subTasks: Task[] })[] = [];
 
-    tasks.forEach(task => {
+    tasksWithoutParents.forEach(task => {
         const currentTask = taskMap.get(task.id);
         if (!currentTask) return;
 
@@ -41,20 +44,6 @@ const nestTasks = (tasks: Task[]): Task[] => {
         }
     });
     return rootTasks;
-};
-
-
-const flattenTasks = (tasks: Task[]): Task[] => {
-  let allTasks: Task[] = [];
-  for (const task of tasks) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { subTasks, ...taskWithoutSubtasks } = task;
-    allTasks.push(taskWithoutSubtasks);
-    if (task.subTasks && task.subTasks.length > 0) {
-      allTasks = allTasks.concat(flattenTasks(task.subTasks));
-    }
-  }
-  return allTasks;
 };
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
@@ -82,9 +71,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }, [initialProject]);
 
   const handleTaskUpdate = useCallback((updatedTasks: Task[]) => {
-    const newProjectState = { ...project, tasks: updatedTasks };
-    setProject(newProjectState);
-  }, [project]);
+    // This function now receives and sets a flat list of tasks
+    setProject(prevProject => ({ ...prevProject, tasks: updatedTasks }));
+  }, []);
 
    const handleSaveBaseline = () => {
     const tasksWithBaseline = project.tasks.map(task => ({
@@ -123,7 +112,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => {
-    let flatTasks = flattenTasks(project.tasks);
+    let flatTasks = [...project.tasks];
     let updatedTaskData = { ...taskData };
 
     // Lógica de ajuste de data com base nas dependências
@@ -199,7 +188,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }
 
   const handleDeleteTask = (taskId: string) => {
-    let flatTasks = flattenTasks(project.tasks);
+    let flatTasks = [...project.tasks];
     const taskToDelete = flatTasks.find(t => t.id === taskId);
     if (!taskToDelete) return;
 
@@ -218,7 +207,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     // Remover a tarefa deletada das dependências de outras tarefas
     newTasks = newTasks.map(t => ({
       ...t,
-      dependencies: t.dependencies.filter(depId => depId !== taskId)
+      dependencies: t.dependencies.filter(depId => !childIdsToDelete.has(depId))
     }));
 
     handleTaskUpdate(newTasks);
