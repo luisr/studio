@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from "react";
-import { projects as initialProjects } from "@/lib/data";
 import type { Project, Task } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -12,6 +11,7 @@ import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Targ
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
+import { projects as initialProjects } from "@/lib/data";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<Project | undefined>(undefined);
@@ -98,6 +98,10 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   }
   
   const formatDate = (dateString: string) => {
+    if (typeof window === 'undefined') {
+        // Formato consistente no servidor para evitar mismatch
+        return new Date(dateString).toLocaleDateString('en-US', { timeZone: 'UTC' });
+    }
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
