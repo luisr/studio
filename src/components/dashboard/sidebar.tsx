@@ -136,8 +136,7 @@ export function DashboardSidebar() {
                     <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{currentUser.name}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                            {/* In a real app, this would be the user's email */}
-                            exemplo@email.com
+                            {currentUser.email}
                         </p>
                     </div>
                 </DropdownMenuLabel>

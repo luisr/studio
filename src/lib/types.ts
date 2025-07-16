@@ -11,6 +11,8 @@ export interface User {
   id: string;
   name: string;
   avatar: string;
+  email: string;
+  phone?: string;
   role?: 'Admin' | 'Editor' | 'Viewer'; // Global/default role
 }
 

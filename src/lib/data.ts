@@ -1,10 +1,10 @@
 import type { Project, User, ProjectConfiguration } from './types';
 
 export const users: User[] = [
-  { id: 'user-1', name: 'Alice', avatar: '/avatars/01.png', role: 'Admin' },
-  { id: 'user-2', name: 'Bob', avatar: '/avatars/02.png', role: 'Editor' },
-  { id: 'user-3', name: 'Charlie', avatar: '/avatars/03.png', role: 'Editor' },
-  { id: 'user-4', name: 'Diana', avatar: '/avatars/04.png', role: 'Viewer' },
+  { id: 'user-1', name: 'Alice', avatar: '/avatars/01.png', email: 'alice@example.com', phone: '111-222-3333', role: 'Admin' },
+  { id: 'user-2', name: 'Bob', avatar: '/avatars/02.png', email: 'bob@example.com', phone: '222-333-4444', role: 'Editor' },
+  { id: 'user-3', name: 'Charlie', avatar: '/avatars/03.png', email: 'charlie@example.com', phone: '333-444-5555', role: 'Editor' },
+  { id: 'user-4', name: 'Diana', avatar: '/avatars/04.png', email: 'diana@example.com', phone: '444-555-6666', role: 'Viewer' },
 ];
 
 export const defaultConfiguration: ProjectConfiguration = {

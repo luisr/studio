@@ -22,6 +22,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 const profileSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
   avatar: z.string().url("URL do avatar inválida.").optional(),
+  email: z.string().email("Por favor, insira um e-mail válido."),
+  phone: z.string().optional(),
 });
 
 const passwordSchema = z.object({
@@ -46,6 +48,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
         defaultValues: {
             name: user.name,
             avatar: user.avatar,
+            email: user.email,
+            phone: user.phone || '',
         },
     });
 
@@ -85,7 +89,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
                 <CardHeader>
                     <CardTitle>Informações Pessoais</CardTitle>
-                    <CardDescription>Atualize seu nome e avatar.</CardDescription>
+                    <CardDescription>Atualize seu nome, avatar e informações de contato.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <FormField
@@ -115,6 +119,32 @@ export function ProfileForm({ user }: ProfileFormProps) {
                                 <FormLabel>Nome Completo</FormLabel>
                                 <FormControl>
                                     <Input placeholder="Seu nome" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                     <FormField
+                        control={profileForm.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                    <Input type="email" placeholder="seu@email.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    <FormField
+                        control={profileForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Telefone</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="(99) 99999-9999" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
