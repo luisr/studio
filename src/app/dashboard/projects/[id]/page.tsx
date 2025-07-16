@@ -19,8 +19,10 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   
   const [project, setProject] = useState<Project | undefined>(undefined);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     // Agora use o ID resolvido
     const currentProject = initialProjects.find((p) => p.id === resolvedParams.id);
     if (currentProject) {
@@ -28,13 +30,6 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
       setFilteredTasks(currentProject.tasks);
     }
   }, [resolvedParams.id]);
-  
-  if (!project) {
-    // Renderiza um estado de carregamento ou esqueleto para evitar chamar notFound em re-renderizações no lado do cliente.
-    // Por enquanto, retornar null impedirá a renderização até que o projeto seja encontrado.
-    // notFound() deve ser idealmente chamado a partir de componentes do servidor ou durante a renderização inicial do servidor.
-    return null; 
-  }
 
   const handleTaskUpdate = (updatedTasks: Task[]) => {
     if(project) {
@@ -45,7 +40,7 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   };
 
   const calculateTotalProgress = (tasks: Task[]): number => {
-    if (tasks.length === 0) return 0;
+    if (!tasks || tasks.length === 0) return 0;
     
     const totalWeightedProgress = tasks.reduce((acc, task) => {
         const progress = task.status === 'Concluído' ? 100 : 0; // Progresso simples
@@ -98,26 +93,24 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
-    // Para evitar erros de hidratação, garanta que a formatação seja consistente ou executada somente no cliente.
-    const [isClient, setIsClient] = useState(false);
-    useEffect(() => setIsClient(true), []);
     if(!isClient) return 'R$ ...';
-
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
   
   const formatDate = (dateString: string) => {
-    // Garante que a formatação da data seja feita no cliente para evitar erros de hidratação
-    const [formattedDate, setFormattedDate] = useState(dateString);
-    useEffect(() => {
-        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }));
-    }, [dateString]);
-    return formattedDate;
+    if (!isClient || !dateString) return '...';
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
+  
+  if (!project) {
+    // Renderiza um estado de carregamento ou esqueleto para evitar chamar notFound em re-renderizações no lado do cliente.
+    // notFound() deve ser idealmente chamado a partir de componentes do servidor ou durante a renderização inicial do servidor.
+    return <div>Carregando...</div>; 
+  }
 
   return (
     <div className="flex flex-col h-full bg-background">
