@@ -12,7 +12,8 @@ import {z} from 'genkit';
 import type { Project } from '@/lib/types';
 
 const SummarizeAllProjectsInputSchema = z.object({
-  projects: z.custom<Project[]>().describe('An array of project objects to be analyzed.'),
+  projects: z.custom<Project[]>(),
+  projectsJson: z.string().describe('An array of project objects to be analyzed, formatted as a JSON string.'),
 });
 export type SummarizeAllProjectsInput = z.infer<typeof SummarizeAllProjectsInputSchema>;
 
@@ -24,9 +25,14 @@ const SummarizeAllProjectsOutputSchema = z.object({
 export type SummarizeAllProjectsOutput = z.infer<typeof SummarizeAllProjectsOutputSchema>;
 
 export async function summarizeAllProjects(
-  input: SummarizeAllProjectsInput
+  input: { projects: Project[] }
 ): Promise<SummarizeAllProjectsOutput> {
-  return summarizeAllProjectsFlow(input);
+  // Augment the input with the stringified JSON for the prompt
+  const augmentedInput = {
+    ...input,
+    projectsJson: JSON.stringify(input.projects, null, 2),
+  };
+  return summarizeAllProjectsFlow(augmentedInput);
 }
 
 const prompt = ai.definePrompt({
@@ -37,7 +43,7 @@ const prompt = ai.definePrompt({
 
 Analise o seguinte conjunto de projetos:
 \`\`\`json
-{{{jsonStringify projects}}}
+{{{projectsJson}}}
 \`\`\`
 
 Com base nos dados fornecidos:
@@ -55,13 +61,8 @@ const summarizeAllProjectsFlow = ai.defineFlow(
     inputSchema: SummarizeAllProjectsInputSchema,
     outputSchema: SummarizeAllProjectsOutputSchema,
   },
-  async input => {
-    // Stringify the projects array for the prompt
-    const augmentedInput = {
-        ...input,
-        jsonStringify: (obj: any) => JSON.stringify(obj, null, 2),
-    }
-    const {output} = await prompt(augmentedInput);
+  async (input) => {
+    const {output} = await prompt(input);
     return output!;
   }
 );
