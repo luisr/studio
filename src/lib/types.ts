@@ -14,13 +14,17 @@ export interface TeamMember {
   role: ProjectRole;
 }
 
+export type UserRole = 'Admin' | 'Editor' | 'Viewer';
+export type UserStatus = 'active' | 'inactive';
+
 export interface User {
   id: string;
   name: string;
   avatar: string;
   email: string;
   phone?: string;
-  role?: 'Admin' | 'Editor' | 'Viewer'; // Global/default role
+  role?: UserRole; // Global/default role
+  status?: UserStatus;
 }
 
 export interface Attachment {
