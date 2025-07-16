@@ -1,10 +1,10 @@
 // src/components/dashboard/gantt-chart.tsx
 "use client"
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { Project, Task } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { eachDayOfInterval, format, differenceInDays, startOfDay } from 'date-fns';
+import { eachDayOfInterval, format, differenceInDays, startOfDay, addDays, getWeek, getMonth, getYear, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,9 @@ import { Button } from '../ui/button';
 import { Save, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { ViewActions } from './view-actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
+type ZoomLevel = 'day' | 'week' | 'month';
 
 interface GanttChartProps {
   project: Project;
@@ -61,53 +63,138 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
 
 export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
   const printableRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<ZoomLevel>('day');
   
-  const { tasks, startDate, endDate, totalDays, dateArray } = useMemo(() => {
+  const { tasks, overallStartDate, overallEndDate } = useMemo(() => {
     const nested = nestTasks(project.tasks);
     const flattened = flattenNestedTasks(nested);
     
     if (flattened.length === 0) {
       const now = new Date();
-      return { tasks: [], startDate: now, endDate: now, totalDays: 1, dateArray: [now] };
+      return { tasks: [], overallStartDate: now, overallEndDate: addDays(now, 30) };
     }
 
-    const startDates = flattened.map(t => new Date(t.plannedStartDate));
-    if(project.baselineSavedAt) {
-      flattened.forEach(t => {
-        if(t.baselineStartDate) startDates.push(new Date(t.baselineStartDate));
-      });
-    }
-
-    const endDates = flattened.map(t => new Date(t.plannedEndDate));
-     if(project.baselineSavedAt) {
-      flattened.forEach(t => {
-        if(t.baselineEndDate) endDates.push(new Date(t.baselineEndDate));
-      });
-    }
+    const allDates = flattened.flatMap(t => [
+      new Date(t.plannedStartDate),
+      new Date(t.plannedEndDate),
+      ...(t.baselineStartDate ? [new Date(t.baselineStartDate)] : []),
+      ...(t.baselineEndDate ? [new Date(t.baselineEndDate)] : []),
+    ]);
     
-    const startDate = startOfDay(new Date(Math.min(...startDates.map(d => d.getTime()))));
-    const endDate = startOfDay(new Date(Math.max(...endDates.map(d => d.getTime()))));
-    
-    const totalDays = differenceInDays(endDate, startDate) + 1;
-    const dateArray = eachDayOfInterval({ start: startDate, end: endDate });
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
 
-    return { tasks: flattened, startDate, endDate, totalDays, dateArray };
+    return { 
+      tasks: flattened, 
+      overallStartDate: startOfDay(minDate), 
+      overallEndDate: startOfDay(maxDate),
+    };
   }, [project.tasks, project.baselineSavedAt]);
 
-  const getTaskPosition = (taskStart: Date, taskEnd: Date) => {
-    const startOffset = differenceInDays(taskStart, startDate);
-    const duration = differenceInDays(taskEnd, taskStart) + 1;
+  const timeHeader = useMemo(() => {
+    const start = overallStartDate;
+    const end = overallEndDate;
+    if (!start || !end || !isFinite(start.getTime()) || !isFinite(end.getTime())) {
+      return { top: [], bottom: [] };
+    }
 
+    switch (zoom) {
+      case 'month':
+        const months = eachMonthOfInterval({ start, end });
+        return {
+          top: months.map(m => ({
+            label: format(m, 'yyyy'),
+            span: eachMonthOfInterval({start: startOfMonth(m), end: endOfMonth(m)}).filter(
+              innerM => getYear(innerM) === getYear(m)
+            ).length
+          })).filter((value, index, self) => self.findIndex(v => v.label === value.label) === index),
+          bottom: months.map(m => ({ label: format(m, 'MMM', { locale: ptBR }), date: m })),
+        };
+      case 'week':
+        const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+        return {
+          top: weeks.map(w => ({
+            label: format(w, 'MMM yyyy', { locale: ptBR }),
+            span: eachWeekOfInterval({start: startOfMonth(w), end: endOfMonth(w)}, {weekStartsOn:1}).length
+          })).filter((value, index, self) => self.findIndex(v => v.label === value.label) === index),
+          bottom: weeks.map(w => ({ label: `S${getWeek(w)}`, date: w })),
+        };
+      case 'day':
+      default:
+        const days = eachDayOfInterval({ start, end });
+        return {
+           top: days.map(d => ({
+            label: format(d, 'MMM yyyy', { locale: ptBR }),
+            span: differenceInDays(endOfMonth(d), startOfMonth(d)) + 1
+          })).filter((value, index, self) => self.findIndex(v => v.label === value.label) === index),
+          bottom: days.map(d => ({ label: format(d, 'd'), subLabel: format(d, 'EEE', { locale: ptBR }), date: d })),
+        };
+    }
+  }, [overallStartDate, overallEndDate, zoom]);
+
+  const getGridPosition = (startDate: Date, endDate: Date) => {
+    const start = startOfDay(startDate);
+    const end = startOfDay(endDate);
+    
+    let gridColumnStart, gridColumnEnd;
+
+    switch (zoom) {
+      case 'month':
+        gridColumnStart = Math.floor(differenceInDays(start, startOfMonth(overallStartDate)) / 30);
+        gridColumnEnd = gridColumnStart + Math.max(1, Math.floor(differenceInDays(end, start) / 30));
+        break;
+      case 'week':
+        gridColumnStart = Math.floor(differenceInDays(start, startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7);
+        gridColumnEnd = gridColumnStart + Math.max(1, Math.floor(differenceInDays(end, start) / 7));
+        break;
+      case 'day':
+      default:
+        gridColumnStart = differenceInDays(start, overallStartDate);
+        gridColumnEnd = differenceInDays(end, start) + gridColumnStart + 1;
+    }
+    
     return {
-      gridColumnStart: startOffset + 2, // +2 because of the task name column
-      gridColumnEnd: startOffset + duration + 2,
+      gridColumn: `${gridColumnStart + 2} / span ${gridColumnEnd - gridColumnStart}`,
     };
   };
-  
-  const todayIndex = useMemo(() => {
-    return differenceInDays(startOfDay(new Date()), startDate);
-  }, [startDate]);
 
+  const todayIndex = useMemo(() => {
+    if (!overallStartDate || !isFinite(overallStartDate.getTime())) return -1;
+    const today = startOfDay(new Date());
+    if (today < overallStartDate) return -1;
+
+    switch (zoom) {
+      case 'month':
+        return Math.floor(differenceInDays(today, startOfMonth(overallStartDate)) / 30);
+      case 'week':
+        return Math.floor(differenceInDays(today, startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7);
+      case 'day':
+      default:
+        return differenceInDays(today, overallStartDate);
+    }
+  }, [overallStartDate, zoom]);
+  
+  const cellWidth = zoom === 'day' ? 40 : zoom === 'week' ? 60 : 100;
+  const totalColumns = timeHeader.bottom.length;
+  
+  if (totalColumns === 0) {
+    return (
+        <Card>
+            <CardHeader className='flex-row items-start justify-between'>
+                <div>
+                    <CardTitle>Gráfico de Gantt</CardTitle>
+                    <CardDescription>Sem dados para exibir.</CardDescription>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-center h-48 text-muted-foreground">
+                    Nenhuma tarefa para exibir no gráfico de Gantt.
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
+  
   return (
     <Card>
       <CardHeader className='flex-row items-start justify-between no-print'>
@@ -121,6 +208,16 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
           </CardDescription>
         </div>
         <div className='flex items-center gap-2'>
+            <Select value={zoom} onValueChange={(v) => setZoom(v as ZoomLevel)}>
+              <SelectTrigger className='w-[120px]'>
+                <SelectValue placeholder="Zoom" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Dia</SelectItem>
+                <SelectItem value="week">Semana</SelectItem>
+                <SelectItem value="month">Mês</SelectItem>
+              </SelectContent>
+            </Select>
             <ViewActions contentRef={printableRef} />
             <Button onClick={onSaveBaseline} variant="outline" size="sm">
                 <Save className='mr-2' />
@@ -151,84 +248,130 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
       <CardContent className="overflow-x-auto printable" ref={printableRef}>
         <div className="relative inline-block min-w-full text-sm printable-content">
             <div 
-              className="grid items-center"
+              className="grid"
               style={{
-                  gridTemplateColumns: `minmax(300px, 1fr) repeat(${totalDays}, minmax(40px, 1fr))`,
-                  gridAutoRows: '40px'
+                  gridTemplateColumns: `minmax(300px, 1fr) repeat(${totalColumns}, minmax(${cellWidth}px, 1fr))`,
+                  gridAutoRows: 'min-content 40px'
               }}
             >
                 {/* Header da Lista de Tarefas */}
-                <div className="sticky left-0 z-20 p-2 font-semibold bg-card border-r border-b">Atividade</div>
+                <div className="sticky left-0 z-30 p-2 font-semibold bg-card border-r border-b grid-rows-subgrid row-span-2">Atividade</div>
                 
-                {/* Header da Timeline */}
-                {dateArray.map((date, index) => (
-                    <div key={index} className="text-center p-2 border-b h-full flex flex-col justify-center">
-                        <div className="text-xs text-muted-foreground">{format(date, 'EEE', { locale: ptBR })}</div>
-                        <div>{format(date, 'd')}</div>
+                {/* Header Superior da Timeline (Meses/Anos) */}
+                {timeHeader.top.map((header, index) => (
+                    <div key={index} className="text-center p-2 border-b h-full flex items-center justify-center font-semibold" style={{ gridColumn: `span ${header.span || 1}` }}>
+                        {header.label}
+                    </div>
+                ))}
+            
+                {/* Header Inferior da Timeline (Dias/Semanas) */}
+                {timeHeader.bottom.map((header, index) => (
+                    <div key={index} className="text-center p-2 border-b border-r h-full flex flex-col justify-center">
+                        <div className="text-xs text-muted-foreground">{header.subLabel}</div>
+                        <div>{header.label}</div>
                     </div>
                 ))}
             
                 {/* Linha do "Hoje" */}
-                {todayIndex >= 0 && todayIndex < totalDays && (
-                  <div className="absolute top-0 bottom-0 row-span-full border-l-2 border-primary z-20" style={{ gridColumn: todayIndex + 2, marginLeft: '-1px'}}>
-                      <div className="sticky top-0 -ml-4 text-xs font-bold text-primary bg-background px-1 rounded whitespace-nowrap">Hoje</div>
+                {todayIndex >= 0 && todayIndex < totalColumns && (
+                  <div className="absolute top-0 bottom-0 row-span-full border-l-2 border-red-500 z-20" style={{ left: `calc(300px + ${todayIndex * cellWidth}px)`, width: `${cellWidth}px`}}>
+                      <div className="sticky top-0 -ml-4 text-xs font-bold text-red-500 bg-background px-1 rounded whitespace-nowrap">Hoje</div>
                   </div>
                 )}
                 
+                {/* Grid de Fundo */}
+                {tasks.map((task, rowIndex) => (
+                  <React.Fragment key={`${task.id}-grid`}>
+                     <div 
+                        className='col-start-2 border-b'
+                        style={{gridRow: rowIndex + 3, gridColumnEnd: totalColumns + 2}}
+                      ></div>
+                      {timeHeader.bottom.map((_, colIndex) => (
+                        <div key={colIndex} className="border-b border-r h-full" style={{gridRow: rowIndex + 3, gridColumn: colIndex + 2}}></div>
+                      ))}
+                  </React.Fragment>
+                ))}
+
+
                 {/* Lista de Tarefas e Barras */}
                 {tasks.map((task, rowIndex) => {
                   const taskStart = startOfDay(new Date(task.plannedStartDate));
                   const taskEnd = startOfDay(new Date(task.plannedEndDate));
-                  const position = getTaskPosition(taskStart, taskEnd);
+                  
+                  if (!isFinite(taskStart.getTime()) || !isFinite(taskEnd.getTime())) return null;
+
+                  let barStart = 0;
+                  let barDuration = 0;
+                  
+                  if (zoom === 'day') {
+                      barStart = differenceInDays(taskStart, overallStartDate);
+                      barDuration = differenceInDays(taskEnd, taskStart) + 1;
+                  } else if (zoom === 'week') {
+                      barStart = differenceInDays(startOfWeek(taskStart, { weekStartsOn: 1 }), startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7;
+                      barDuration = (differenceInDays(taskEnd, taskStart) + 1) / 7;
+                  } else { // month
+                      barStart = (getYear(taskStart) - getYear(overallStartDate)) * 12 + getMonth(taskStart) - getMonth(overallStartDate);
+                      barDuration = (differenceInDays(taskEnd, taskStart) + 1) / 30.44; // Average days in month
+                  }
                   
                   const baselineStart = task.baselineStartDate ? startOfDay(new Date(task.baselineStartDate)) : null;
                   const baselineEnd = task.baselineEndDate ? startOfDay(new Date(task.baselineEndDate)) : null;
-                  const baselinePosition = baselineStart && baselineEnd ? getTaskPosition(baselineStart, baselineEnd) : null;
+                  
+                  let baselineBarStart = 0;
+                  let baselineBarDuration = 0;
+                  
+                  if(baselineStart && baselineEnd && isFinite(baselineStart.getTime()) && isFinite(baselineEnd.getTime())){
+                     if (zoom === 'day') {
+                        baselineBarStart = differenceInDays(baselineStart, overallStartDate);
+                        baselineBarDuration = differenceInDays(baselineEnd, baselineStart) + 1;
+                     } else if (zoom === 'week') {
+                        baselineBarStart = differenceInDays(startOfWeek(baselineStart, { weekStartsOn: 1 }), startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7;
+                        baselineBarDuration = (differenceInDays(baselineEnd, baselineStart) + 1) / 7;
+                     } else { // month
+                        baselineBarStart = (getYear(baselineStart) - getYear(overallStartDate)) * 12 + getMonth(baselineStart) - getMonth(overallStartDate);
+                        baselineBarDuration = (differenceInDays(baselineEnd, baselineStart) + 1) / 30.44; 
+                     }
+                  }
+
 
                   return (
                     <React.Fragment key={task.id}>
-                        {/* Task Row Background */}
-                        <div className="col-span-full h-full border-b" style={{ gridRow: rowIndex + 2 }}></div>
-                        
                         {/* Task Name */}
                         <div 
                            className="sticky left-0 z-20 flex items-center p-2 bg-card border-r border-b whitespace-nowrap overflow-hidden text-ellipsis"
-                           style={{ paddingLeft: `${1 + task.level * 1.5}rem`, gridRow: rowIndex + 2 }}
+                           style={{ paddingLeft: `${1 + task.level * 1.5}rem`, gridRow: rowIndex + 3, gridColumn: 1 }}
                         >
                           {task.name}
                         </div>
                         
-                        {/* Grid cells for the row */}
-                        {dateArray.map((_, colIndex) => (
-                          <div key={colIndex} className="border-b h-full" style={{gridRow: rowIndex + 2, gridColumn: colIndex + 2}}></div>
-                        ))}
-
-                        {/* Baseline Bar */}
-                        {baselinePosition && (
-                            <div
-                                className="h-2 rounded-full bg-muted-foreground/50 z-10 self-end mb-2"
-                                style={{
-                                    gridRow: rowIndex + 2,
-                                    gridColumnStart: baselinePosition.gridColumnStart,
-                                    gridColumnEnd: baselinePosition.gridColumnEnd,
-                                }}
-                            ></div>
-                        )}
-                        
-                        {/* Task Bar */}
-                         <div
-                            className='h-full'
-                             style={{
-                                gridRow: rowIndex + 2,
-                                gridColumnStart: position.gridColumnStart,
-                                gridColumnEnd: position.gridColumnEnd
-                             }}
+                        <div
+                            className='relative h-full'
+                            style={{
+                                gridRow: rowIndex + 3,
+                                gridColumn: `2 / span ${totalColumns}`
+                            }}
                          >
+                          {/* Baseline Bar */}
+                          {baselineStart && (
+                              <div
+                                  className="absolute h-2 rounded-full bg-muted-foreground/50 z-10 bottom-1"
+                                  style={{
+                                      left: `calc(${baselineBarStart / totalColumns * 100}% + 2px)`,
+                                      width: `calc(${baselineBarDuration / totalColumns * 100}% - 4px)`
+                                  }}
+                              ></div>
+                          )}
+                          
+                          {/* Task Bar */}
                           <TooltipProvider delayDuration={100}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div
-                                  className={cn("h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center", statusColors[task.status] || 'bg-gray-400')}
+                                 <div
+                                  className={cn("absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2", statusColors[task.status] || 'bg-gray-400')}
+                                  style={{
+                                      left: `calc(${barStart / totalColumns * 100}% + 2px)`,
+                                      width: `calc(${barDuration / totalColumns * 100}% - 4px)`
+                                  }}
                                 >
                                 </div>
                               </TooltipTrigger>

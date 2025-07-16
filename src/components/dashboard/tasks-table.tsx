@@ -267,7 +267,15 @@ export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map(task => renderTask(task))}
+              {tasks.length > 0 ? (
+                tasks.map(task => renderTask(task))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8 + (project.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                    Nenhuma tarefa encontrada.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
