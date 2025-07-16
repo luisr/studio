@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useReactToPrint } from 'react-to-print';
 import screenfull from 'screenfull';
 import { Button } from '@/components/ui/button';
 import { Expand, Minimize, Printer } from 'lucide-react';
@@ -14,16 +13,29 @@ interface ViewActionsProps {
 export function ViewActions({ contentRef }: ViewActionsProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const handlePrint = useReactToPrint({
-    content: () => contentRef.current,
-    documentTitle: 'Project View',
-    pageStyle: `
-      @page {
-        size: A4 landscape;
-        margin: 1cm;
-      }
-    `,
-  });
+  const handlePrint = () => {
+    const printableElement = contentRef.current;
+    if (printableElement) {
+      // Temporariamente adiciona uma classe ao body para impressão
+      document.body.classList.add('printing');
+      
+      // Armazena o conteúdo original para restaurar depois
+      const originalContents = document.body.innerHTML;
+      const printContents = printableElement.innerHTML;
+      
+      // Substitui o corpo do documento pelo conteúdo imprimível
+      document.body.innerHTML = printContents;
+      
+      window.print();
+      
+      // Restaura o conteúdo original do corpo
+      document.body.innerHTML = originalContents;
+      // Remove a classe de impressão
+      document.body.classList.remove('printing');
+       // Recarrega o estado do react, se necessário (um simples reload pode ser mais fácil em alguns casos)
+      window.location.reload();
+    }
+  };
 
   const handleFullscreen = () => {
     if (screenfull.isEnabled && contentRef.current) {

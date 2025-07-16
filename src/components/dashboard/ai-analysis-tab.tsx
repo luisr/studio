@@ -93,7 +93,7 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
+      <CardHeader className="flex-row items-center justify-between no-print">
         <div>
           <CardTitle>Análise Preditiva e Insights com IA</CardTitle>
           <CardDescription>
@@ -102,75 +102,77 @@ export function AiAnalysisTab({ project }: AiAnalysisTabProps) {
         </div>
         <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent className="space-y-8" ref={printableRef}>
-        {error && <p className="text-destructive text-sm text-center">{error}</p>}
+      <CardContent className="space-y-8 printable" ref={printableRef}>
+        <div className="printable-content">
+          {error && <p className="text-destructive text-sm text-center">{error}</p>}
 
-        {/* Resumo do Status */}
-        <div className="space-y-4">
-            <div className="flex items-center gap-4 no-print">
-                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-full p-3">
-                    <Sparkles className="h-6 w-6" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold">Resumo do Status do Projeto</h3>
-                    <p className="text-sm text-muted-foreground">Obtenha um resumo conciso da saúde atual do seu projeto.</p>
-                </div>
-                <Button onClick={handleSummarize} disabled={loading !== null} className="ml-auto">
-                    {loading === "summary" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Gerar Resumo
-                </Button>
-            </div>
-          {loading === "summary" ? <LoadingState /> : results.summary && (
-            <ResultDisplay title="Resumo da IA">
-                <p><strong>Sumário:</strong> {results.summary.summary}</p>
-                <p><strong>Recomendações:</strong> {results.summary.recommendations}</p>
-            </ResultDisplay>
-          )}
-        </div>
+          {/* Resumo do Status */}
+          <div className="space-y-4">
+              <div className="flex items-center gap-4 no-print">
+                  <div className="flex-shrink-0 bg-primary/10 text-primary rounded-full p-3">
+                      <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="text-lg font-semibold">Resumo do Status do Projeto</h3>
+                      <p className="text-sm text-muted-foreground">Obtenha um resumo conciso da saúde atual do seu projeto.</p>
+                  </div>
+                  <Button onClick={handleSummarize} disabled={loading !== null} className="ml-auto">
+                      {loading === "summary" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                      Gerar Resumo
+                  </Button>
+              </div>
+            {loading === "summary" ? <LoadingState /> : results.summary && (
+              <ResultDisplay title="Resumo da IA">
+                  <p><strong>Sumário:</strong> {results.summary.summary}</p>
+                  <p><strong>Recomendações:</strong> {results.summary.recommendations}</p>
+              </ResultDisplay>
+            )}
+          </div>
 
-        {/* Previsão de Riscos */}
-         <div className="space-y-4">
-            <div className="flex items-center gap-4 no-print">
-                <div className="flex-shrink-0 bg-destructive/10 text-destructive rounded-full p-3">
-                    <AlertTriangle className="h-6 w-6" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold">Previsão de Riscos</h3>
-                    <p className="text-sm text-muted-foreground">Identifique riscos potenciais antes que eles se tornem problemas.</p>
-                </div>
-                <Button onClick={handlePredictRisks} disabled={loading !== null} variant="destructive" className="ml-auto">
-                    {loading === "risks" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
-                    Prever Riscos
-                </Button>
-            </div>
-          {loading === "risks" ? <LoadingState /> : results.risks && (
-             <ResultDisplay title="Riscos Previstos e Mitigação">
-                <p><strong>Riscos:</strong> {results.risks.risks}</p>
-                <p><strong>Estratégias de Mitigação:</strong> {results.risks.mitigationStrategies}</p>
-            </ResultDisplay>
-          )}
-        </div>
-        
-        {/* Lições Aprendidas */}
-        <div className="space-y-4">
-            <div className="flex items-center gap-4 no-print">
-                <div className="flex-shrink-0 bg-purple-500/10 text-purple-600 rounded-full p-3">
-                    <GraduationCap className="h-6 w-6" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold">Lições Aprendidas</h3>
-                    <p className="text-sm text-muted-foreground">Gere um relatório de lições aprendidas para melhorar projetos futuros.</p>
-                </div>
-                 <Button onClick={handleGenerateLessons} disabled={loading !== null} variant="secondary" className="ml-auto">
-                    {loading === "lessons" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                    Gerar Lições
-                </Button>
-            </div>
-          {loading === "lessons" ? <LoadingState /> : results.lessons && (
-             <ResultDisplay title="Relatório de Lições Aprendidas">
-                <p>{results.lessons.lessonsLearned}</p>
-            </ResultDisplay>
-          )}
+          {/* Previsão de Riscos */}
+           <div className="space-y-4">
+              <div className="flex items-center gap-4 no-print">
+                  <div className="flex-shrink-0 bg-destructive/10 text-destructive rounded-full p-3">
+                      <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="text-lg font-semibold">Previsão de Riscos</h3>
+                      <p className="text-sm text-muted-foreground">Identifique riscos potenciais antes que eles se tornem problemas.</p>
+                  </div>
+                  <Button onClick={handlePredictRisks} disabled={loading !== null} variant="destructive" className="ml-auto">
+                      {loading === "risks" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
+                      Prever Riscos
+                  </Button>
+              </div>
+            {loading === "risks" ? <LoadingState /> : results.risks && (
+               <ResultDisplay title="Riscos Previstos e Mitigação">
+                  <p><strong>Riscos:</strong> {results.risks.risks}</p>
+                  <p><strong>Estratégias de Mitigação:</strong> {results.risks.mitigationStrategies}</p>
+              </ResultDisplay>
+            )}
+          </div>
+          
+          {/* Lições Aprendidas */}
+          <div className="space-y-4">
+              <div className="flex items-center gap-4 no-print">
+                  <div className="flex-shrink-0 bg-purple-500/10 text-purple-600 rounded-full p-3">
+                      <GraduationCap className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="text-lg font-semibold">Lições Aprendidas</h3>
+                      <p className="text-sm text-muted-foreground">Gere um relatório de lições aprendidas para melhorar projetos futuros.</p>
+                  </div>
+                   <Button onClick={handleGenerateLessons} disabled={loading !== null} variant="secondary" className="ml-auto">
+                      {loading === "lessons" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                      Gerar Lições
+                  </Button>
+              </div>
+            {loading === "lessons" ? <LoadingState /> : results.lessons && (
+               <ResultDisplay title="Relatório de Lições Aprendidas">
+                  <p>{results.lessons.lessonsLearned}</p>
+              </ResultDisplay>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

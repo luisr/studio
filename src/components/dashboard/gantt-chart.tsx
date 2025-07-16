@@ -110,7 +110,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
 
   return (
     <Card>
-      <CardHeader className='flex-row items-start justify-between'>
+      <CardHeader className='flex-row items-start justify-between no-print'>
         <div>
           <CardTitle>Gráfico de Gantt</CardTitle>
           <CardDescription>
@@ -120,7 +120,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
             }
           </CardDescription>
         </div>
-        <div className='flex items-center gap-2 no-print'>
+        <div className='flex items-center gap-2'>
             <ViewActions contentRef={printableRef} />
             <Button onClick={onSaveBaseline} variant="outline" size="sm">
                 <Save className='mr-2' />
@@ -149,7 +149,7 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto printable" ref={printableRef}>
-        <div className="relative inline-block min-w-full text-sm">
+        <div className="relative inline-block min-w-full text-sm printable-content">
             <div 
               className="grid items-center"
               style={{
@@ -180,12 +180,10 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                   const taskStart = startOfDay(new Date(task.plannedStartDate));
                   const taskEnd = startOfDay(new Date(task.plannedEndDate));
                   const position = getTaskPosition(taskStart, taskEnd);
-                  const duration = differenceInDays(taskEnd, taskStart) + 1;
                   
                   const baselineStart = task.baselineStartDate ? startOfDay(new Date(task.baselineStartDate)) : null;
                   const baselineEnd = task.baselineEndDate ? startOfDay(new Date(task.baselineEndDate)) : null;
                   const baselinePosition = baselineStart && baselineEnd ? getTaskPosition(baselineStart, baselineEnd) : null;
-                  const baselineDuration = baselineStart && baselineEnd ? differenceInDays(baselineEnd, baselineStart) + 1 : 0;
 
                   return (
                     <React.Fragment key={task.id}>

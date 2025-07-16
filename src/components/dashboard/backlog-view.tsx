@@ -41,7 +41,7 @@ export function BacklogView({ project }: BacklogViewProps) {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
+      <CardHeader className="flex-row items-center justify-between no-print">
         <div>
           <CardTitle>Backlog do Projeto</CardTitle>
           <CardDescription>
@@ -50,44 +50,46 @@ export function BacklogView({ project }: BacklogViewProps) {
         </div>
         <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent ref={printableRef}>
-        {backlogTasks.length > 0 ? (
-          <div className="space-y-4">
-            {backlogTasks.map(task => (
-              <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg shadow-sm">
-                <div className="flex flex-col gap-1">
-                  <span className="font-semibold">{task.name}</span>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <UserCircle className="h-4 w-4" />
-                    <span>{task.assignee.name}</span>
+      <CardContent className="printable" ref={printableRef}>
+        <div className="printable-content">
+          {backlogTasks.length > 0 ? (
+            <div className="space-y-4">
+              {backlogTasks.map(task => (
+                <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold">{task.name}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <UserCircle className="h-4 w-4" />
+                      <span>{task.assignee.name}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Badge variant="outline" className={priorityClasses[task.priority || 'Média']}>
+                      {task.priority || 'Média'}
+                    </Badge>
+                     <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                   <div className="text-sm text-muted-foreground">
+                                      {task.plannedHours}h
+                                  </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>Horas Planejadas</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant="outline" className={priorityClasses[task.priority || 'Média']}>
-                    {task.priority || 'Média'}
-                  </Badge>
-                   <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                 <div className="text-sm text-muted-foreground">
-                                    {task.plannedHours}h
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Horas Planejadas</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-48 text-center bg-muted/50 rounded-lg">
-            <h3 className="text-lg font-semibold">Backlog Vazio!</h3>
-            <p className="text-muted-foreground">Não há tarefas com status "A Fazer" no momento.</p>
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 text-center bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold">Backlog Vazio!</h3>
+              <p className="text-muted-foreground">Não há tarefas com status "A Fazer" no momento.</p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

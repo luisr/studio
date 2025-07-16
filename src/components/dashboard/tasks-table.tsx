@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, CornerDownRight, Target, ChevronRight, Printer, Expand } from "lucide-react";
+import { Edit, Trash2, CornerDownRight, Target, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -205,8 +205,8 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
           <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
-          <TableCell>
-            <div className="flex gap-1 no-print">
+          <TableCell className='no-print'>
+            <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -243,23 +243,25 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
           <ViewActions contentRef={printableRef} />
        </TasksTableToolbar>
        <div className="overflow-x-auto printable" ref={printableRef}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40%]">Atividade</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Prioridade</TableHead>
-              <TableHead>Data Fim Plan.</TableHead>
-              <TableHead>CPI</TableHead>
-              <TableHead>SPI</TableHead>
-              <TableHead className='no-print'>Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map(task => renderTask(task))}
-          </TableBody>
-        </Table>
+        <div className="printable-content">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40%]">Atividade</TableHead>
+                <TableHead>Responsável</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Prioridade</TableHead>
+                <TableHead>Data Fim Plan.</TableHead>
+                <TableHead>CPI</TableHead>
+                <TableHead>SPI</TableHead>
+                <TableHead className='no-print'>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map(task => renderTask(task))}
+            </TableBody>
+          </Table>
+        </div>
        </div>
     </div>
   );
