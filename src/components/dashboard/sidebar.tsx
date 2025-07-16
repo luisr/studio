@@ -12,11 +12,11 @@ import {
   TrendingUp,
   Activity,
   BrainCircuit,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Separator } from "../ui/separator";
+import { projects } from "@/lib/data";
 
 const BrainIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white p-2 bg-primary rounded-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -37,10 +37,15 @@ export function DashboardSidebar() {
     { href: "#", label: "Usuários", icon: Users },
   ];
 
+  const totalProjects = projects.length;
+  const pendingTasks = projects.flatMap(p => p.tasks).filter(t => t.status !== 'Concluído').length;
+  // This is just a placeholder value
+  const aiAnalyses = 3;
+
    const insightLinks = [
-    { label: "Projetos Ativos", icon: TrendingUp, value: 0 },
-    { label: "Tarefas Pendentes", icon: Activity, value: 0 },
-    { label: "Análises IA", icon: BrainCircuit, value: 0 },
+    { label: "Projetos Ativos", icon: TrendingUp, value: totalProjects },
+    { label: "Tarefas Pendentes", icon: Activity, value: pendingTasks },
+    { label: "Análises IA", icon: BrainCircuit, value: aiAnalyses },
   ];
 
   return (
@@ -64,7 +69,7 @@ export function DashboardSidebar() {
                         href={link.href}
                         className={cn(
                         "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                        (pathname.startsWith(link.href) && link.href !== '/dashboard' || pathname === link.href)
+                        (pathname.startsWith(link.href) && link.href.length > 10) || pathname === link.href
                             ? "bg-primary/10 text-primary"
                             : "hover:bg-muted"
                         )}
