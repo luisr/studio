@@ -3,18 +3,18 @@
 
 import { useState, useMemo, useEffect } from "react";
 import type { Project, Task } from "@/lib/types";
-import { notFound, useParams } from "next/navigation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
 import { TaskForm } from "@/components/dashboard/task-form";
 import { AiAnalysisTab } from "./ai-analysis-tab";
-import { projects as initialProjects } from "@/lib/data";
 import { ChartsTab } from "./charts-tab";
+import { GanttChart } from "./gantt-chart";
+
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
@@ -241,7 +241,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     <PieChart className="w-4 h-4 mr-2" />
                     Gráficos
                 </TabsTrigger>
-                <TabsTrigger value="gantt" disabled>Gantt</TabsTrigger>
+                <TabsTrigger value="gantt">
+                  <GanttChartSquare className="w-4 h-4 mr-2" />
+                  Gantt
+                </TabsTrigger>
                 <TabsTrigger value="kanban" disabled>Kanban</TabsTrigger>
               </TabsList>
             </div>
@@ -264,6 +267,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             </TabsContent>
             <TabsContent value="graficos">
               <ChartsTab project={project} />
+            </TabsContent>
+            <TabsContent value="gantt">
+              <GanttChart project={project} />
             </TabsContent>
           </Tabs>
         </div>

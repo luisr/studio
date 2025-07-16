@@ -30,6 +30,7 @@ export interface Task {
   isCritical: boolean;
   parentId?: string | null;
   isMilestone?: boolean;
+  color?: string;
 }
 
 export interface Project {
