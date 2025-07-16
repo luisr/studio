@@ -40,26 +40,26 @@ const prompt = ai.definePrompt({
   name: 'summarizeProjectStatusPrompt',
   input: {schema: SummarizeProjectStatusInputSchema},
   output: {schema: SummarizeProjectStatusOutputSchema},
-  prompt: `You are an AI project management assistant.  Your job is to summarize the status of a project and provide recommendations.
+  prompt: `Você é um assistente de gerenciamento de projetos de IA. Seu trabalho é resumir o status de um projeto e fornecer recomendações. A resposta deve ser em português.
 
-  Project Name: {{{projectName}}}
+  Nome do Projeto: {{{projectName}}}
 
-  Key Performance Indicators:
+  Indicadores Chave de Performance (KPIs):
   {{#each kpis}}
   - {{@key}}: {{this}}
   {{/each}}
 
-  Change History:
+  Histórico de Mudanças:
   {{#each changeHistory}}
-  - Field: {{fieldChanged}}, Old Value: {{oldValue}}, New Value: {{newValue}}, User: {{user}}, Timestamp: {{timestamp}}, Justification: {{justification}}
+  - Campo: {{fieldChanged}}, Valor Antigo: {{oldValue}}, Novo Valor: {{newValue}}, Usuário: {{user}}, Timestamp: {{timestamp}}, Justificação: {{justification}}
   {{/each}}
 
-  Risks:
+  Riscos:
   {{#each risks}}
   - {{this}}
   {{/each}}
 
-  Please provide a concise summary of the project status, including progress, risks, and potential issues.  Also, provide recommendations for addressing potential issues and mitigating risks.
+  Por favor, forneça um resumo conciso do status do projeto, incluindo progresso, riscos e possíveis problemas. Além disso, forneça recomendações para abordar possíveis problemas e mitigar riscos. A resposta DEVE ser em português.
   `,
 });
 

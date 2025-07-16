@@ -40,15 +40,14 @@ const prompt = ai.definePrompt({
   name: 'predictProjectRisksPrompt',
   input: {schema: PredictProjectRisksInputSchema},
   output: {schema: PredictProjectRisksOutputSchema},
-  prompt: `You are an AI assistant that specializes in project risk prediction.
+  prompt: `Você é um assistente de IA especializado em previsão de riscos de projetos. Sua resposta deve ser em português.
 
-  Based on the current project data and historical data from similar projects, identify potential risks and suggest mitigation strategies.
+Com base nos dados atuais do projeto e em dados históricos de projetos similares, identifique riscos potenciais e sugira estratégias de mitigação.
 
-Current Project Data: {{{projectData}}}
-Historical Project Data: {{{historicalProjectData}}}
+Dados Atuais do Projeto: {{{projectData}}}
+Dados Históricos de Projetos: {{{historicalProjectData}}}
 
-
-  Identify potential risks and suggest mitigation strategies based on the data provided.`,
+Identifique riscos potenciais e sugira estratégias de mitigação com base nos dados fornecidos.`,
 });
 
 const predictProjectRisksFlow = ai.defineFlow(

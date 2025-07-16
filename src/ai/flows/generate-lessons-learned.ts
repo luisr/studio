@@ -40,13 +40,14 @@ const prompt = ai.definePrompt({
   name: 'generateLessonsLearnedPrompt',
   input: {schema: GenerateLessonsLearnedInputSchema},
   output: {schema: GenerateLessonsLearnedOutputSchema},
-  prompt: `You are an expert project manager tasked with analyzing historical project data to generate a lessons learned report.
+  prompt: `Você é um gerente de projetos especialista encarregado de analisar dados históricos de projetos para gerar um relatório de lições aprendidas.
+Sua resposta deve ser em português.
 
-  Analyze the following project data, focusing on change justifications and identifying patterns of delays and replanning. Extract concrete lessons learned and recommend process improvements.
+Analise os seguintes dados do projeto, focando nas justificativas de mudanças e identificando padrões de atrasos e replanejamentos. Extraia lições aprendidas concretas e recomende melhorias nos processos.
 
-  Project Data: {{{projectData}}}
+Dados do Projeto: {{{projectData}}}
 
-  Lessons Learned Report:
+Relatório de Lições Aprendidas:
 `,
 });
 
