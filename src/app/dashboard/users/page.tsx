@@ -64,7 +64,7 @@ export default function UsersPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>Editar</DropdownMenuItem>
                         <DropdownMenuItem>Desativar</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Excluir</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">Excluir</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

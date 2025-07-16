@@ -11,7 +11,7 @@ export interface User {
   id: string;
   name: string;
   avatar: string;
-  role?: 'Admin' | 'Editor' | 'Viewer'; // Role within a project
+  role?: 'Admin' | 'Editor' | 'Viewer'; // Global/default role
 }
 
 export interface Attachment {
