@@ -20,6 +20,9 @@ export const projects: Project[] = [
     actualEndDate: '2024-07-15',
     plannedBudget: 500000,
     actualCost: 550000,
+    customFieldDefinitions: [
+      { id: 'sprint', name: 'Sprint', type: 'text' },
+    ],
     kpis: {
       'Variação de Prazo (dias)': 15,
       'Variação de Custo (R$)': -50000,
@@ -68,6 +71,7 @@ export const projects: Project[] = [
             dependencies: [],
             isCritical: true,
             changeHistory: [],
+            customFields: { sprint: 'Sprint 1' }
           },
           {
             id: 'task-1-2',
@@ -84,6 +88,7 @@ export const projects: Project[] = [
             dependencies: ['task-1-1'],
             isCritical: true,
             changeHistory: [],
+            customFields: { sprint: 'Sprint 1' }
           },
         ],
       },
@@ -103,6 +108,7 @@ export const projects: Project[] = [
         isCritical: true,
         isMilestone: true,
         changeHistory: [],
+        customFields: { sprint: 'Sprint 2' }
       },
       {
         id: 'task-3',
@@ -120,6 +126,7 @@ export const projects: Project[] = [
         isCritical: true,
         isMilestone: true,
         changeHistory: [],
+        customFields: { sprint: 'Sprint 3' }
       },
        {
         id: 'task-4',
@@ -137,6 +144,7 @@ export const projects: Project[] = [
         isCritical: false,
         isMilestone: true,
         changeHistory: [],
+        customFields: { sprint: 'Sprint 4' }
       },
        {
         id: 'task-5',
@@ -153,6 +161,7 @@ export const projects: Project[] = [
         dependencies: ['task-4'],
         isCritical: false,
         changeHistory: [],
+        customFields: { sprint: 'Sprint 4' }
       },
        {
         id: 'task-6',
@@ -170,6 +179,7 @@ export const projects: Project[] = [
         isCritical: true,
         isMilestone: true,
         changeHistory: [],
+        customFields: { sprint: 'Sprint 5' }
       },
     ],
   },

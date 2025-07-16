@@ -13,6 +13,12 @@ export interface User {
   avatar: string;
 }
 
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'date';
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -34,6 +40,7 @@ export interface Task {
   baselineStartDate?: string;
   baselineEndDate?: string;
   priority?: 'Alta' | 'Média' | 'Baixa';
+  customFields?: { [key: string]: string | number | boolean };
 }
 
 export interface Project {
@@ -53,4 +60,5 @@ export interface Project {
     [key: string]: number | string;
   };
   baselineSavedAt?: string;
+  customFieldDefinitions?: CustomFieldDefinition[];
 }

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "../ui/scroll-area";
+import { Input } from "../ui/input";
 
 export const TASK_FIELDS = {
     id: "ID da Tarefa",
@@ -35,12 +36,14 @@ export const TASK_FIELDS = {
 
 
 export type TaskField = keyof typeof TASK_FIELDS;
+export type MappingValue = TaskField | "ignore" | "new_field";
+export type Mapping = Record<string, { type: MappingValue, newFieldName?: string }>;
 
 interface ImportTasksModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   csvHeaders: string[];
-  onConfirm: (mapping: Record<string, TaskField>) => void;
+  onConfirm: (mapping: Mapping) => void;
 }
 
 export function ImportTasksModal({
@@ -49,28 +52,21 @@ export function ImportTasksModal({
   csvHeaders,
   onConfirm,
 }: ImportTasksModalProps) {
-  const [mapping, setMapping] = useState<Record<string, TaskField | "ignore">>({});
+  const [mapping, setMapping] = useState<Mapping>({});
 
   const handleConfirm = () => {
-    const finalMapping: Record<string, TaskField> = {};
-    for (const key in mapping) {
-      if (mapping[key] !== "ignore") {
-        finalMapping[key] = mapping[key] as TaskField;
-      }
-    }
-    onConfirm(finalMapping);
+    onConfirm(mapping);
   };
   
   const handleAutoMapping = () => {
-     const newMapping: Record<string, TaskField | "ignore"> = {};
-     const taskFieldValues = Object.values(TASK_FIELDS).map(v => v.toLowerCase());
+     const newMapping: Mapping = {};
      const taskFieldKeys = Object.keys(TASK_FIELDS) as TaskField[];
 
      csvHeaders.forEach(header => {
         const matchingKey = taskFieldKeys.find(key => 
           TASK_FIELDS[key].toLowerCase() === header.toLowerCase() || key.toLowerCase() === header.toLowerCase()
         );
-        newMapping[header] = matchingKey || 'ignore';
+        newMapping[header] = { type: matchingKey || 'ignore' };
      });
      setMapping(newMapping);
   }
@@ -81,7 +77,7 @@ export function ImportTasksModal({
         <DialogHeader>
           <DialogTitle>Mapear Colunas do CSV</DialogTitle>
           <DialogDescription>
-            Associe cada coluna do seu arquivo CSV a um campo de tarefa correspondente. Colunas não mapeadas serão ignoradas.
+            Associe cada coluna do seu arquivo CSV a um campo de tarefa correspondente ou crie um novo campo personalizado.
           </DialogDescription>
         </DialogHeader>
 
@@ -98,14 +94,14 @@ export function ImportTasksModal({
                     {csvHeaders.map((header) => (
                     <TableRow key={header}>
                         <TableCell className="font-semibold">{header}</TableCell>
-                        <TableCell>
+                        <TableCell className="flex gap-2 items-center">
                         <Select
-                            value={mapping[header] || "ignore"}
+                            value={mapping[header]?.type || "ignore"}
                             onValueChange={(value) =>
-                            setMapping((prev) => ({
-                                ...prev,
-                                [header]: value as TaskField | "ignore",
-                            }))
+                              setMapping((prev) => ({
+                                  ...prev,
+                                  [header]: { type: value as MappingValue, newFieldName: header },
+                              }))
                             }
                         >
                             <SelectTrigger>
@@ -113,6 +109,7 @@ export function ImportTasksModal({
                             </SelectTrigger>
                             <SelectContent>
                             <SelectItem value="ignore">Ignorar esta coluna</SelectItem>
+                            <SelectItem value="new_field">Criar Novo Campo...</SelectItem>
                             {Object.entries(TASK_FIELDS).map(([key, label]) => (
                                 <SelectItem key={key} value={key}>
                                 {label}
@@ -120,6 +117,16 @@ export function ImportTasksModal({
                             ))}
                             </SelectContent>
                         </Select>
+                        {mapping[header]?.type === 'new_field' && (
+                          <Input
+                            placeholder="Nome do Novo Campo"
+                            value={mapping[header]?.newFieldName || ''}
+                            onChange={(e) => setMapping(prev => ({
+                              ...prev,
+                              [header]: { ...prev[header], newFieldName: e.target.value }
+                            }))}
+                          />
+                        )}
                         </TableCell>
                     </TableRow>
                     ))}

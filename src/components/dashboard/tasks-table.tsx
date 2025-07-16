@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { Task } from "@/lib/types";
+import type { Project, Task } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import { ViewActions } from './view-actions';
 interface TasksTableProps {
   tasks: Task[];
   allTasks: Task[]; // All tasks for context
+  project: Project;
   onTasksChange: (tasks: Task[]) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
@@ -52,7 +53,7 @@ const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   return ids;
 };
 
-export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
+export function TasksTable({ tasks, allTasks, project, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const printableRef = useRef<HTMLDivElement>(null);
@@ -205,6 +206,11 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
           <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
+          {project.customFieldDefinitions?.map(fieldDef => (
+             <TableCell key={fieldDef.id}>
+                {task.customFields?.[fieldDef.id] ?? '-'}
+             </TableCell>
+          ))}
           <TableCell className='no-print'>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
@@ -254,6 +260,9 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
                 <TableHead>Data Fim Plan.</TableHead>
                 <TableHead>CPI</TableHead>
                 <TableHead>SPI</TableHead>
+                {project.customFieldDefinitions?.map(fieldDef => (
+                    <TableHead key={fieldDef.id}>{fieldDef.name}</TableHead>
+                ))}
                 <TableHead className='no-print'>Ações</TableHead>
               </TableRow>
             </TableHeader>

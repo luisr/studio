@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -19,7 +19,7 @@ import { RoadmapView } from "./roadmap-view";
 import { BacklogView } from "./backlog-view";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
-import { ImportTasksModal, TaskField } from "./import-tasks-modal";
+import { ImportTasksModal, Mapping, TaskField } from "./import-tasks-modal";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -212,26 +212,34 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleExportTasks = () => {
-    const dataToExport = project.tasks.map(task => ({
-      id: task.id,
-      name: task.name,
-      assignee_id: task.assignee.id,
-      assignee_name: task.assignee.name,
-      status: task.status,
-      priority: task.priority || '',
-      plannedStartDate: task.plannedStartDate,
-      plannedEndDate: task.plannedEndDate,
-      actualStartDate: task.actualStartDate || '',
-      actualEndDate: task.actualEndDate || '',
-      plannedHours: task.plannedHours,
-      actualHours: task.actualHours,
-      dependencies: task.dependencies.join(','),
-      isCritical: task.isCritical,
-      parentId: task.parentId || '',
-      isMilestone: task.isMilestone || false,
-      baselineStartDate: task.baselineStartDate || '',
-      baselineEndDate: task.baselineEndDate || '',
-    }));
+    const dataToExport = project.tasks.map(task => {
+      const customFieldsData: {[key: string]: any} = {};
+      project.customFieldDefinitions?.forEach(def => {
+          customFieldsData[def.name] = task.customFields?.[def.id] ?? '';
+      });
+
+      return {
+        id: task.id,
+        name: task.name,
+        assignee_id: task.assignee.id,
+        assignee_name: task.assignee.name,
+        status: task.status,
+        priority: task.priority || '',
+        plannedStartDate: task.plannedStartDate,
+        plannedEndDate: task.plannedEndDate,
+        actualStartDate: task.actualStartDate || '',
+        actualEndDate: task.actualEndDate || '',
+        plannedHours: task.plannedHours,
+        actualHours: task.actualHours,
+        dependencies: task.dependencies.join(','),
+        isCritical: task.isCritical,
+        parentId: task.parentId || '',
+        isMilestone: task.isMilestone || false,
+        baselineStartDate: task.baselineStartDate || '',
+        baselineEndDate: task.baselineEndDate || '',
+        ...customFieldsData
+      };
+    });
 
     const csv = Papa.unparse(dataToExport);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -283,18 +291,42 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     event.target.value = '';
   };
   
-  const handleImportConfirm = (mapping: Record<string, TaskField>) => {
+  const handleImportConfirm = (mapping: Mapping) => {
     const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
     const usersByNameMap = new Map<string, User>(project.team.map(u => [u.name.toLowerCase(), u]));
 
+    const newCustomFieldDefs: CustomFieldDefinition[] = [...(project.customFieldDefinitions || [])];
+    const newCustomFieldMap = new Map<string, string>(); // csvHeader -> customFieldId
+
+    Object.entries(mapping).forEach(([csvHeader, mapInfo]) => {
+      if (mapInfo.type === 'new_field' && mapInfo.newFieldName) {
+        const fieldId = mapInfo.newFieldName.toLowerCase().replace(/\s+/g, '_');
+        if (!newCustomFieldDefs.some(def => def.id === fieldId)) {
+          newCustomFieldDefs.push({ id: fieldId, name: mapInfo.newFieldName, type: 'text' });
+        }
+        newCustomFieldMap.set(csvHeader, fieldId);
+      }
+    });
+
     const newTasks: Task[] = csvData.map(row => {
-        const task: Partial<Task> = {};
+        const task: Partial<Task> & { customFields: Record<string, any> } = { customFields: {} };
         
         for (const csvHeader in mapping) {
-            const taskField = mapping[csvHeader];
+            const mapInfo = mapping[csvHeader];
+            const taskField = mapInfo.type;
             const value = row[csvHeader];
 
             if (value === null || value === undefined || value === '') continue;
+
+            if (taskField === 'new_field') {
+              const fieldId = newCustomFieldMap.get(csvHeader);
+              if (fieldId) {
+                task.customFields[fieldId] = value;
+              }
+              continue;
+            }
+
+            if (taskField === 'ignore') continue;
 
             switch (taskField) {
                 case 'id':
@@ -358,7 +390,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
 
     const allTasks = [...project.tasks, ...newTasks];
-    handleTaskUpdate(allTasks);
+    setProject(prev => ({ ...prev, tasks: allTasks, customFieldDefinitions: newCustomFieldDefs }));
 
     toast({
         title: "Importação Concluída",
@@ -482,6 +514,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                   <TasksTable 
                     tasks={filteredTasks} 
                     allTasks={project.tasks} 
+                    project={project}
                     onTasksChange={handleTaskUpdate} 
                     onEditTask={handleEditTask}
                     onDeleteTask={handleDeleteTask}
