@@ -28,7 +28,9 @@ export interface Task {
   subTasks?: Task[];
   changeHistory: ChangeLog[];
   isCritical: boolean;
-  isSubtask?: boolean;
+  isSubtask?: boolean; // Can be inferred from parentId
+  parentId?: string | null;
+  isMilestone?: boolean;
 }
 
 export interface Project {

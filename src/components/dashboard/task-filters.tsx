@@ -13,25 +13,36 @@ interface TaskFiltersProps {
     onFilterChange: (filteredTasks: Task[]) => void;
 }
 
+const filterTasks = (tasks: Task[], searchTerm: string, statusFilter: string): Task[] => {
+    let results: Task[] = [];
+    
+    for (const task of tasks) {
+        const lowercasedTerm = searchTerm.toLowerCase();
+        const matchesSearch = task.name.toLowerCase().includes(lowercasedTerm);
+        const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+
+        let subTasks: Task[] = [];
+        if (task.subTasks) {
+            subTasks = filterTasks(task.subTasks, searchTerm, statusFilter);
+        }
+
+        if (matchesSearch && matchesStatus) {
+            results.push({ ...task, subTasks: subTasks });
+        } else if (subTasks.length > 0) {
+            // Include parent if any subtask matches
+            results.push({ ...task, subTasks: subTasks });
+        }
+    }
+
+    return results;
+};
+
 export function TaskFilters({ tasks, onFilterChange }: TaskFiltersProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    let filtered = tasks;
-
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      // This is a simple filter. For subtasks, a recursive search would be better.
-      filtered = filtered.filter(task => 
-        task.name.toLowerCase().includes(lowercasedTerm)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(task => task.status === statusFilter);
-    }
-    
+    const filtered = filterTasks(tasks, searchTerm, statusFilter);
     onFilterChange(filtered);
 
   }, [searchTerm, statusFilter, tasks, onFilterChange]);

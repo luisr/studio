@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, GripVertical, CornerDownRight } from "lucide-react";
+import { Edit, Trash2, GripVertical, CornerDownRight, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -50,6 +51,17 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.preventDefault(); 
   };
+  
+  const flattenTasks = (tasksToFlatten: Task[]): Task[] => {
+    let flatList: Task[] = [];
+    for (const task of tasksToFlatten) {
+        flatList.push(task);
+        if (task.subTasks) {
+            flatList = flatList.concat(flattenTasks(task.subTasks));
+        }
+    }
+    return flatList;
+  }
 
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetTaskId: string) => {
     e.preventDefault();
@@ -58,51 +70,17 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
 
     if (sourceTaskId === targetTaskId) return;
 
-    let newTasks = JSON.parse(JSON.stringify(allTasks));
+    // Use a flat list of all tasks for easier manipulation
+    let newTasks = flattenTasks(allTasks);
 
-    let sourceTask: Task | null = null;
-    
-    const findAndRemove = (currentTasks: Task[], id: string): Task | null => {
-        for (let i = 0; i < currentTasks.length; i++) {
-            if (currentTasks[i].id === id) {
-                const [task] = currentTasks.splice(i, 1);
-                return task;
-            }
-            if (currentTasks[i].subTasks) {
-                const found = findAndRemove(currentTasks[i].subTasks!, id);
-                if (found) return found;
-            }
-        }
-        return null;
-    };
-    
-    sourceTask = findAndRemove(newTasks, sourceTaskId);
-
-    if (!sourceTask) return;
-
-    let targetTask: Task | null = null;
-    const findTarget = (currentTasks: Task[], id: string) => {
-        for (const task of currentTasks) {
-            if (task.id === id) return task;
-            if (task.subTasks) {
-                const found = findTarget(task.subTasks, id);
-                if (found) return found;
-            }
-        }
-        return null;
-    };
-
-    targetTask = findTarget(newTasks, targetTaskId);
-    
-    if (targetTask) {
-        if (!targetTask.subTasks) {
-            targetTask.subTasks = [];
-        }
-        // Remove from any parent subtask list if it exists
-        sourceTask.isSubtask = true;
-        targetTask.subTasks.push(sourceTask);
-        onTasksChange(newTasks);
+    // Find the source task and update its parentId
+    const sourceTaskIndex = newTasks.findIndex(t => t.id === sourceTaskId);
+    if (sourceTaskIndex > -1) {
+        newTasks[sourceTaskIndex].parentId = targetTaskId;
+        newTasks[sourceTaskIndex].isSubtask = true;
     }
+    
+    onTasksChange(newTasks);
   };
 
   const calculateSPI = (task: Task) => {
@@ -154,6 +132,18 @@ export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDelet
             <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               {isSubtask && <CornerDownRight className="h-4 w-4 text-muted-foreground" />}
+              {task.isMilestone && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger>
+                            <Target className="h-4 w-4 text-primary" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Este é um marco do projeto.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+              )}
               <span>{task.name}</span>
             </div>
           </TableCell>

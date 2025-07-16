@@ -36,6 +36,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Switch } from "../ui/switch";
 
 const taskSchema = z.object({
   name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
@@ -45,6 +46,8 @@ const taskSchema = z.object({
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
   plannedHours: z.coerce.number().min(0, { message: "As horas planejadas devem ser positivas." }),
   actualHours: z.coerce.number().min(0, { message: "As horas reais devem ser positivas." }),
+  parentId: z.string().nullable().optional(),
+  isMilestone: z.boolean().optional(),
 });
 
 type TaskFormValues = z.infer<typeof taskSchema>;
@@ -55,9 +58,10 @@ interface TaskFormProps {
   onSave: (data: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => void;
   task: Task | null;
   users: User[];
+  allTasks: Task[];
 }
 
-export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskFormProps) {
+export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }: TaskFormProps) {
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -66,6 +70,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
       status: "A Fazer",
       plannedHours: 0,
       actualHours: 0,
+      parentId: null,
+      isMilestone: false,
     },
   });
 
@@ -79,6 +85,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
         plannedEndDate: new Date(task.plannedEndDate),
         plannedHours: task.plannedHours,
         actualHours: task.actualHours,
+        parentId: task.parentId,
+        isMilestone: task.isMilestone,
       });
     } else {
       form.reset({
@@ -89,9 +97,11 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
         plannedEndDate: new Date(),
         plannedHours: 0,
         actualHours: 0,
+        parentId: null,
+        isMilestone: false,
       });
     }
-  }, [task, form]);
+  }, [task, form, isOpen]);
 
   const onSubmit = (data: TaskFormValues) => {
     const selectedUser = users.find(u => u.id === data.assignee);
@@ -104,6 +114,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
         plannedEndDate: data.plannedEndDate.toISOString(),
     });
   };
+
+  const possibleParents = allTasks.filter(t => t.id !== task?.id);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -177,6 +189,32 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
                 )}
               />
             </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                  control={form.control}
+                  name="parentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tarefa Pai</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Nenhuma (tarefa principal)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Nenhuma (tarefa principal)</SelectItem>
+                          {possibleParents.map((parentTask) => (
+                            <SelectItem key={parentTask.id} value={parentTask.id}>{parentTask.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -196,7 +234,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(field.value, "dd/MM/yyyy")
                                 ) : (
                                     <span>Escolha uma data</span>
                                 )}
@@ -234,7 +272,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(field.value, "dd/MM/yyyy")
                                 ) : (
                                     <span>Escolha uma data</span>
                                 )}
@@ -284,6 +322,27 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users }: TaskForm
                   )}
                 />
             </div>
+
+            <FormField
+              control={form.control}
+              name="isMilestone"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>É um Marco?</FormLabel>
+                    <FormDescription>
+                      Marcos são pontos de verificação importantes no projeto.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
