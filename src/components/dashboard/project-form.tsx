@@ -1,4 +1,4 @@
-// src/components/dashboard/new-project-form.tsx
+// src/components/dashboard/project-form.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 
 const projectSchema = z.object({
@@ -47,28 +47,47 @@ const projectSchema = z.object({
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 
-interface NewProjectFormProps {
+interface ProjectFormProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSave: (data: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration'>) => void;
+  onSave: (data: any) => void;
   users: User[];
+  project?: Project | null;
 }
 
-export function NewProjectForm({ isOpen, onOpenChange, onSave, users }: NewProjectFormProps) {
+export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = null }: ProjectFormProps) {
   const [team, setTeam] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      managerId: "",
-      plannedStartDate: new Date(),
-      plannedEndDate: new Date(),
-      plannedBudget: 0,
-    },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+        if (project) { // Edit mode
+            form.reset({
+                name: project.name,
+                description: project.description,
+                managerId: project.manager.id,
+                plannedStartDate: new Date(project.plannedStartDate),
+                plannedEndDate: new Date(project.plannedEndDate),
+                plannedBudget: project.plannedBudget,
+            });
+            setTeam(project.team || []);
+        } else { // Create mode
+            form.reset({
+                name: "",
+                description: "",
+                managerId: "",
+                plannedStartDate: new Date(),
+                plannedEndDate: new Date(),
+                plannedBudget: 0,
+            });
+            setTeam([]);
+        }
+    }
+  }, [project, isOpen, form]);
 
   const handleAddUserToTeam = () => {
     if (selectedUser) {
@@ -94,27 +113,34 @@ export function NewProjectForm({ isOpen, onOpenChange, onSave, users }: NewProje
       finalTeam.push(manager);
     }
     
-    onSave({
-      name: data.name,
-      description: data.description || "",
-      manager: manager,
-      team: finalTeam,
-      plannedStartDate: data.plannedStartDate.toISOString(),
-      plannedEndDate: data.plannedEndDate.toISOString(),
-      plannedBudget: data.plannedBudget,
-    });
-    form.reset();
-    setTeam([]);
+    const payload = {
+        name: data.name,
+        description: data.description || "",
+        manager: manager,
+        team: finalTeam,
+        plannedStartDate: data.plannedStartDate.toISOString(),
+        plannedEndDate: data.plannedEndDate.toISOString(),
+        plannedBudget: data.plannedBudget,
+    };
+
+    if (project) {
+        onSave({ ...project, ...payload });
+    } else {
+        onSave(payload);
+    }
   };
+  
+  const dialogTitle = project ? "Editar Projeto" : "Criar Novo Projeto";
+  const dialogDescription = project 
+    ? "Atualize os detalhes do seu projeto abaixo."
+    : "Preencha os detalhes abaixo para criar um novo projeto.";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Criar Novo Projeto</DialogTitle>
-          <DialogDescription>
-            Preencha os detalhes abaixo para criar um novo projeto.
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
@@ -247,7 +273,7 @@ export function NewProjectForm({ isOpen, onOpenChange, onSave, users }: NewProje
                 </Select>
                 <Button type="button" variant="outline" onClick={handleAddUserToTeam}><PlusCircle className="mr-2"/>Adicionar</Button>
               </div>
-              <div className="space-y-2 rounded-md border p-2">
+              <div className="space-y-2 rounded-md border p-2 min-h-[80px]">
                   {team.length > 0 ? team.map(member => (
                     <div key={member.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -270,7 +296,7 @@ export function NewProjectForm({ isOpen, onOpenChange, onSave, users }: NewProje
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Criar Projeto</Button>
+              <Button type="submit">Salvar Alterações</Button>
             </DialogFooter>
           </form>
         </Form>

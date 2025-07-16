@@ -1,19 +1,20 @@
 // src/components/dashboard/project-header.tsx
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Upload, RefreshCw, Settings, GalleryHorizontal } from "lucide-react";
+import { Plus, Download, Upload, RefreshCw, Settings, GalleryHorizontal, Edit } from "lucide-react";
 import React, { useRef, ChangeEvent } from "react";
 
 interface ProjectHeaderProps {
   project: Project;
   onNewTaskClick: () => void;
+  onEditProjectClick: () => void;
   onImport: (event: ChangeEvent<HTMLInputElement>) => void;
   onExport: () => void;
   onSettingsClick: () => void;
   onGalleryClick: () => void;
 }
 
-export function ProjectHeader({ project, onNewTaskClick, onImport, onExport, onSettingsClick, onGalleryClick }: ProjectHeaderProps) {
+export function ProjectHeader({ project, onNewTaskClick, onEditProjectClick, onImport, onExport, onSettingsClick, onGalleryClick }: ProjectHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportClick = () => {
@@ -39,6 +40,10 @@ export function ProjectHeader({ project, onNewTaskClick, onImport, onExport, onS
                 <Button variant="outline" size="sm" onClick={onExport}><Download /> Exportar CSV</Button>
                 <Button variant="outline" size="sm" onClick={() => window.location.reload()}><RefreshCw /> Atualizar</Button>
                 <Button size="sm" onClick={onNewTaskClick}><Plus /> Nova Atividade</Button>
+                 <Button variant="outline" size="icon" onClick={onEditProjectClick}>
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Editar Projeto</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={onGalleryClick}>
                     <GalleryHorizontal className="h-4 w-4" />
                     <span className="sr-only">Galeria do Projeto</span>

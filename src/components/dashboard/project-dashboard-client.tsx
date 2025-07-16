@@ -25,6 +25,8 @@ import { ProjectGalleryModal } from "./project-gallery-modal";
 import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
 import { CalendarView } from "./calendar-view";
+import { ProjectForm } from "./project-form";
+import { users as allUsers } from "@/lib/data";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -93,7 +95,8 @@ const iconMap: Record<string, LucideIcon> = {
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -134,6 +137,18 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       actualCost: newActualCost,
     }));
   }, []);
+
+  const handleProjectUpdate = (updatedProjectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks'>) => {
+    setProject(prev => ({
+        ...prev,
+        ...updatedProjectData,
+    }));
+    toast({
+        title: "Projeto Atualizado",
+        description: "Os detalhes do projeto foram salvos com sucesso.",
+    });
+    setIsProjectFormOpen(false);
+  }
   
   const handleConfigUpdate = (newConfig: ProjectConfiguration) => {
     setProject(prevProject => ({
@@ -245,7 +260,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     }
 
     handleTaskUpdate(newTasks);
-    setIsFormOpen(false);
+    setIsTaskFormOpen(false);
     setEditingTask(null);
   };
 
@@ -276,12 +291,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setIsFormOpen(true);
+    setIsTaskFormOpen(true);
   };
   
   const handleCreateTask = () => {
     setEditingTask(null);
-    setIsFormOpen(true);
+    setIsTaskFormOpen(true);
   }
 
   const handleDeleteTask = (taskId: string) => {
@@ -643,7 +658,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       <div className="flex flex-col h-full bg-background">
         <ProjectHeader 
           project={project} 
-          onNewTaskClick={handleCreateTask} 
+          onNewTaskClick={handleCreateTask}
+          onEditProjectClick={() => setIsProjectFormOpen(true)}
           onImport={handleFileSelect}
           onExport={handleExportTasks}
           onSettingsClick={() => setIsSettingsOpen(true)}
@@ -730,11 +746,18 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         </div>
       </div>
       <TaskForm 
-        isOpen={isFormOpen}
-        onOpenChange={setIsFormOpen}
+        isOpen={isTaskFormOpen}
+        onOpenChange={setIsTaskFormOpen}
         onSave={handleSaveTask}
         task={editingTask}
         project={project}
+      />
+       <ProjectForm 
+        isOpen={isProjectFormOpen}
+        onOpenChange={setIsProjectFormOpen}
+        onSave={handleProjectUpdate}
+        project={project}
+        users={allUsers}
       />
       <ImportTasksModal
         isOpen={isImportModalOpen}

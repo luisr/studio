@@ -6,13 +6,13 @@ import { projects as initialProjects, users } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { NewProjectForm } from '@/components/dashboard/new-project-form';
+import { ProjectForm } from '@/components/dashboard/project-form';
 import type { Project } from '@/lib/types';
 import { defaultConfiguration } from '@/lib/data';
 
 export default function ProjectsListPage() {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const handleCreateProject = (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration'>) => {
     const newProject: Project = {
@@ -24,7 +24,7 @@ export default function ProjectsListPage() {
       configuration: defaultConfiguration, // Use a default configuration
     };
     setProjects(prevProjects => [...prevProjects, newProject]);
-    setIsNewProjectModalOpen(false);
+    setIsFormOpen(false);
   };
 
   return (
@@ -34,7 +34,7 @@ export default function ProjectsListPage() {
           <h1 className="text-2xl font-bold tracking-tight">Projetos</h1>
           <p className="text-muted-foreground">Selecione um projeto para ver seus detalhes.</p>
         </div>
-         <Button onClick={() => setIsNewProjectModalOpen(true)}>Novo Projeto</Button>
+         <Button onClick={() => setIsFormOpen(true)}>Novo Projeto</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -73,9 +73,9 @@ export default function ProjectsListPage() {
             </Card>
           ))}
         </div>
-        <NewProjectForm 
-          isOpen={isNewProjectModalOpen}
-          onOpenChange={setIsNewProjectModalOpen}
+        <ProjectForm
+          isOpen={isFormOpen}
+          onOpenChange={setIsFormOpen}
           onSave={handleCreateProject}
           users={users}
         />
