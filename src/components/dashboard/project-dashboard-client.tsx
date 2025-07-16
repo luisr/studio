@@ -6,7 +6,7 @@ import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, 
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList, Trello } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart, GanttChartSquare, Layers, Route, ClipboardList, Trello, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
@@ -24,6 +24,7 @@ import { ProjectSettingsModal } from "./project-settings-modal";
 import { ProjectGalleryModal } from "./project-gallery-modal";
 import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
+import { CalendarView } from "./calendar-view";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -663,6 +664,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                   <Trello className="w-4 h-4 mr-2" />
                   Kanban
                 </TabsTrigger>
+                <TabsTrigger value="calendario">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Calendário
+                </TabsTrigger>
                  <TabsTrigger value="gantt">
                   <GanttChartSquare className="w-4 h-4 mr-2" />
                   Gantt
@@ -702,6 +707,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             </TabsContent>
             <TabsContent value="kanban">
               <KanbanView project={project} onTaskStatusChange={handleTaskStatusChange} />
+            </TabsContent>
+            <TabsContent value="calendario">
+              <CalendarView project={project} onEditTask={handleEditTask} />
             </TabsContent>
             <TabsContent value="gantt">
               <GanttChart project={project} onSaveBaseline={handleSaveBaseline} onDeleteBaseline={handleDeleteBaseline} />
