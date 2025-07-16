@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, Check, ChevronsUpDown, Paperclip, X, History, UserCircle, VenetianMask } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Paperclip, X, History, UserCircle } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, addDays, formatDistanceToNow } from "date-fns";
@@ -811,9 +811,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                                 <div>
                                     Alterou <Badge variant="secondary">{log.fieldChanged}</Badge> de <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.oldValue)}</Badge> para <Badge variant="outline">{formatChangeLogValue(log.fieldChanged, log.newValue)}</Badge>.
                                 </div>
-                                <p className="mt-1 italic text-muted-foreground">
+                                <div className="mt-1 italic text-muted-foreground">
                                     <strong>Justificativa:</strong> {log.justification}
-                                </p>
+                                </div>
                               </div>
                           ))
                         ) : (
