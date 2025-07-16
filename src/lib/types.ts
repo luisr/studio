@@ -27,9 +27,18 @@ export interface StatusDefinition {
     isDefault?: boolean;
 }
 
+export interface CustomKpiDefinition {
+  id: string;
+  name: string;
+  field: 'plannedHours' | 'actualHours';
+  aggregation: 'sum' | 'average' | 'count';
+  icon: 'BarChart' | 'Clock' | 'DollarSign' | 'ListTodo' | 'Target' | 'AlertTriangle';
+}
+
 export interface ProjectConfiguration {
     statuses: StatusDefinition[];
     visibleKpis: Record<string, boolean>;
+    customKpis?: CustomKpiDefinition[];
 }
 
 export interface Task {

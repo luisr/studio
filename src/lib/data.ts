@@ -23,7 +23,8 @@ export const defaultConfiguration: ProjectConfiguration = {
         costVariance: true,
         spi: true,
         cpi: true,
-    }
+    },
+    customKpis: [],
 }
 
 export const projects: Project[] = [

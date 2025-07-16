@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, CustomKpiDefinition } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import { ImportTasksModal, Mapping, TaskField } from "./import-tasks-modal";
 import { ProjectSettingsModal } from "./project-settings-modal";
+import type { LucideIcon } from "lucide-react";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -82,6 +83,10 @@ const calculateTotalProgress = (tasks: Task[], config: ProjectConfiguration): nu
 
     return Math.round(totalWeightedProgress / totalHours);
 }
+
+const iconMap: Record<string, LucideIcon> = {
+    BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, CheckCircle
+};
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
@@ -467,36 +472,65 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
   
-  const projectKPIs = useMemo(() => {
-    const tasks = project.tasks;
-    const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
-    const completedTasks = completedStatus ? tasks.filter(t => t.status === completedStatus.name).length : 0;
-    const overallProgress = calculateTotalProgress(tasks, project.configuration);
+  const allKpis = useMemo(() => {
+    const { tasks, configuration, plannedBudget, actualCost } = project;
     
+    // Default KPIs
+    const completedStatus = configuration.statuses.find(s => s.isCompleted);
+    const completedTasks = completedStatus ? tasks.filter(t => t.status === completedStatus.name).length : 0;
+    const overallProgress = calculateTotalProgress(tasks, configuration);
     const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
-
     const earnedValue = (overallProgress / 100) * totalPlannedHours;
-    
     const spi = totalPlannedHours > 0 && earnedValue > 0 ? (earnedValue / totalPlannedHours) : 1;
     const cpi = totalActualHours > 0 && earnedValue > 0 ? (earnedValue / totalActualHours) : 1;
-    
-    return {
+
+    const defaultKpis = {
       totalTasks: { title: 'Total de Atividades', value: tasks.length, icon: ListTodo, color: 'blue' },
       completedTasks: { title: 'Atividades Concluídas', value: completedTasks, icon: CheckCircle, color: 'green' },
       overallProgress: { title: 'Conclusão Geral', value: `${overallProgress}%`, icon: BarChart, color: 'purple' },
-      plannedBudget: { title: 'Custo Planejado', value: formatCurrency(project.plannedBudget), icon: DollarSign, color: 'blue' },
-      actualCost: { title: 'Custo Real', value: formatCurrency(project.actualCost), icon: DollarSign, color: 'orange' },
-      costVariance: { title: 'Desvio de Custo', value: formatCurrency(project.plannedBudget - project.actualCost), icon: AlertTriangle, color: (project.plannedBudget - project.actualCost) < 0 ? 'red' : 'green' },
+      plannedBudget: { title: 'Custo Planejado', value: formatCurrency(plannedBudget), icon: DollarSign, color: 'blue' },
+      actualCost: { title: 'Custo Real', value: formatCurrency(actualCost), icon: DollarSign, color: 'orange' },
+      costVariance: { title: 'Desvio de Custo', value: formatCurrency(plannedBudget - actualCost), icon: AlertTriangle, color: (plannedBudget - actualCost) < 0 ? 'red' : 'green' },
       spi: { title: 'SPI (Prazo)', value: spi.toFixed(2), icon: Clock, color: spi < 1 ? 'red' : 'green' },
       cpi: { title: 'CPI (Custo)', value: cpi.toFixed(2), icon: Target, color: cpi < 1 ? 'red' : 'green' },
-    }
+    };
 
+    // Custom KPIs
+    const customKpisCalculated = (configuration.customKpis || []).map(kpiDef => {
+      let value: number | string = 0;
+      const relevantTasks = tasks.filter(t => typeof t[kpiDef.field] === 'number');
+
+      if (relevantTasks.length > 0) {
+        switch (kpiDef.aggregation) {
+          case 'sum':
+            value = relevantTasks.reduce((acc, t) => acc + (t[kpiDef.field] as number), 0);
+            break;
+          case 'average':
+            value = relevantTasks.reduce((acc, t) => acc + (t[kpiDef.field] as number), 0) / relevantTasks.length;
+            value = value.toFixed(2);
+            break;
+          case 'count':
+            value = relevantTasks.length;
+            break;
+        }
+      }
+      return {
+        id: kpiDef.id,
+        title: kpiDef.name,
+        value: value,
+        icon: iconMap[kpiDef.icon] || BarChart,
+        color: 'blue' // Default color for custom KPIs for now
+      };
+    });
+    
+    // Filter default KPIs based on visibility settings
+    const visibleDefaultKpis = Object.entries(defaultKpis)
+      .filter(([key]) => configuration.visibleKpis[key])
+      .map(([key, kpi]) => ({ id: key, ...kpi }));
+
+    return [...visibleDefaultKpis, ...customKpisCalculated];
   }, [project, isClient]);
-
-  const visibleKpis = useMemo(() => {
-    return Object.entries(projectKPIs).filter(([key]) => project.configuration.visibleKpis[key]);
-  }, [projectKPIs, project.configuration.visibleKpis]);
 
   if (!isClient) {
     return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
@@ -514,8 +548,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {visibleKpis.map(([key, kpi]) => (
-                <KpiCard key={key} title={kpi.title} value={kpi.value} icon={kpi.icon} color={kpi.color as any} />
+            {allKpis.map((kpi) => (
+                <KpiCard key={kpi.id} title={kpi.title} value={kpi.value} icon={kpi.icon} color={kpi.color as any} />
             ))}
           </div>
           
