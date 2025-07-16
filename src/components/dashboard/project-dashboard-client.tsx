@@ -14,7 +14,7 @@ import { TaskForm } from "@/components/dashboard/task-form";
 import { AiAnalysisTab } from "./ai-analysis-tab";
 import { ChartsTab } from "./charts-tab";
 import { GanttChart } from "./gantt-chart";
-import { addDays, max, parseISO } from "date-fns";
+import { addDays, max, parseISO, differenceInDays } from "date-fns";
 import { RoadmapView } from "./roadmap-view";
 import { BacklogView } from "./backlog-view";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +44,41 @@ const nestTasks = (tasks: Task[]): Task[] => {
 
     return rootTasks;
 };
+
+const calculateTotalProgress = (tasks: Task[]): number => {
+    if (!tasks || tasks.length === 0) return 0;
+    
+    const rootTasks = nestTasks(tasks);
+
+    const calculateWeightedProgress = (taskNode: Task): { progress: number, totalHours: number } => {
+        if (!taskNode.subTasks || taskNode.subTasks.length === 0) {
+            const progress = taskNode.status === 'Concluído' ? 100 : 0;
+            return { progress: progress * (taskNode.plannedHours || 1), totalHours: taskNode.plannedHours || 1 };
+        }
+
+        const subTasksResult = taskNode.subTasks.reduce((acc, subTask) => {
+            const result = calculateWeightedProgress(subTask);
+            acc.progress += result.progress;
+            acc.totalHours += result.totalHours;
+            return acc;
+        }, { progress: 0, totalHours: 0 });
+        
+        return subTasksResult;
+    }
+
+    let totalWeightedProgress = 0;
+    let totalHours = 0;
+
+    for (const task of rootTasks) {
+        const { progress, totalHours: taskHours } = calculateWeightedProgress(task);
+        totalWeightedProgress += progress;
+        totalHours += taskHours;
+    }
+  
+    if (totalHours === 0) return 0;
+
+    return Math.round(totalWeightedProgress / totalHours);
+}
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
@@ -75,7 +110,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }, [initialProject]);
 
   const handleTaskUpdate = useCallback((updatedTasks: Task[]) => {
-    setProject(prevProject => ({ ...prevProject, tasks: updatedTasks }));
+     const newActualCost = updatedTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0);
+    setProject(prevProject => ({ 
+      ...prevProject, 
+      tasks: updatedTasks,
+      actualCost: newActualCost,
+    }));
   }, []);
 
    const handleSaveBaseline = () => {
@@ -129,9 +169,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             const newStartDate = addDays(latestDependencyEndDate, 1);
             
             if (parseISO(updatedTaskData.plannedStartDate) < newStartDate) {
-                const duration = parseISO(updatedTaskData.plannedEndDate).getTime() - parseISO(updatedTaskData.plannedStartDate).getTime();
+                const duration = differenceInDays(parseISO(updatedTaskData.plannedEndDate), parseISO(updatedTaskData.plannedStartDate));
                 updatedTaskData.plannedStartDate = newStartDate.toISOString();
-                updatedTaskData.plannedEndDate = new Date(newStartDate.getTime() + duration).toISOString();
+                updatedTaskData.plannedEndDate = addDays(newStartDate, duration).toISOString();
             }
         }
     }
@@ -144,11 +184,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 const newChangeHistory = [...(t.changeHistory || [])];
 
                 (Object.keys(updatedTaskData) as Array<keyof typeof updatedTaskData>).forEach(key => {
-                    if (t[key] !== updatedTaskData[key]) {
+                    const typedKey = key as keyof Task;
+                    if (t[typedKey] !== updatedTaskData[typedKey]) {
                         newChangeHistory.push({
                             fieldChanged: key,
-                            oldValue: String(t[key]),
-                            newValue: String(updatedTaskData[key]),
+                            oldValue: String(t[typedKey]),
+                            newValue: String(updatedTaskData[typedKey]),
                             user: 'Usuário',
                             timestamp: new Date().toISOString(),
                             justification: 'Atualização via formulário'
@@ -164,7 +205,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         const newTask: Task = {
             ...updatedTaskData,
             id: `task-${Date.now()}`,
-            subTasks: [],
             changeHistory: [],
             isCritical: false, 
         };
@@ -328,7 +368,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
             if (taskField === 'ignore') continue;
 
-            switch (taskField) {
+            switch (taskField as TaskField) {
                 case 'id':
                 case 'name':
                     task[taskField] = String(value);
@@ -351,10 +391,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 case 'plannedEndDate':
                 case 'actualStartDate':
                 case 'actualEndDate':
-                    const date = parseISO(value);
-                    if (!isNaN(date.getTime())) {
+                    try {
+                      const date = new Date(value);
+                      if (!isNaN(date.getTime())) {
                         task[taskField] = date.toISOString();
-                    }
+                      }
+                    } catch(e) { /* ignore invalid date */ }
                     break;
                 case 'plannedHours':
                 case 'actualHours':
@@ -387,10 +429,15 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         if (!task.changeHistory) task.changeHistory = [];
 
         return task as Task;
-    });
+    }).filter(t => t.name !== "Tarefa importada sem nome"); // Filter out potentially empty rows
 
     const allTasks = [...project.tasks, ...newTasks];
-    setProject(prev => ({ ...prev, tasks: allTasks, customFieldDefinitions: newCustomFieldDefs }));
+    
+    // Update the state once with all new data
+    setProject(prev => {
+      const newActualCost = allTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0); // Assuming a fixed rate for simplicity
+      return { ...prev, tasks: allTasks, customFieldDefinitions: newCustomFieldDefs, actualCost: newActualCost };
+    });
 
     toast({
         title: "Importação Concluída",
@@ -401,45 +448,22 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setCsvData([]);
     setCsvHeaders([]);
   };
-
-  const calculateTotalProgress = useMemo(() => {
-    const calculate = (tasks: Task[]): number => {
-      if (!tasks || tasks.length === 0) return 0;
-      
-      const totalWeightedProgress = tasks.reduce((acc, task) => {
-          const progress = task.status === 'Concluído' ? 100 : (task.subTasks && task.subTasks.length > 0 ? calculate(task.subTasks) : 0);
-          return acc + (progress * (task.plannedHours || 1));
-      }, 0);
-  
-      const totalHours = tasks.reduce((acc, task) => acc + (task.plannedHours || 1), 0);
-      
-      if (totalHours === 0) return 0;
-  
-      return Math.round(totalWeightedProgress / totalHours);
-    }
-    return calculate;
-  }, []);
   
   const projectKPIs = useMemo(() => {
     const tasks = project.tasks;
-    const countTasks = (taskList: Task[]): { total: number, completed: number } => {
-        let total = taskList.length;
-        let completed = taskList.filter(t => t.status === 'Concluído').length;
-        return { total, completed };
-    };
-
-    const { total: totalTasks, completed: completedTasks } = countTasks(tasks);
-    const overallProgress = calculateTotalProgress(nestTasks(tasks));
+    const completedTasks = tasks.filter(t => t.status === 'Concluído').length;
+    const overallProgress = calculateTotalProgress(tasks);
     
     const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
-    const earnedValue = overallProgress / 100 * totalPlannedHours;
+
+    const earnedValue = (overallProgress / 100) * totalPlannedHours;
     
     const spi = totalPlannedHours > 0 && earnedValue > 0 ? (earnedValue / totalPlannedHours) : 1;
     const cpi = totalActualHours > 0 && earnedValue > 0 ? (earnedValue / totalActualHours) : 1;
     
     return {
-      totalTasks: totalTasks,
+      totalTasks: tasks.length,
       completedTasks: completedTasks,
       overallProgress: `${overallProgress}%`,
       plannedBudget: project.plannedBudget,
@@ -449,7 +473,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       cpi: cpi.toFixed(2),
     }
 
-  }, [project, calculateTotalProgress]);
+  }, [project.tasks, project.plannedBudget, project.actualCost]);
 
   const formatCurrency = (value: number) => {
     if(!isClient) return 'R$ ...';
@@ -457,7 +481,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }
 
   if (!isClient) {
-    return <div>Carregando...</div>; 
+    return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
   }
   
   return (

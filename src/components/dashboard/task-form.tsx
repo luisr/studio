@@ -1,7 +1,7 @@
 // src/components/dashboard/task-form.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,6 +51,9 @@ const taskSchema = z.object({
   parentId: z.string().nullable().optional(),
   isMilestone: z.boolean().optional(),
   dependencies: z.array(z.string()).optional(),
+}).refine(data => data.plannedEndDate >= data.plannedStartDate, {
+    message: "A data de fim não pode ser anterior à data de início.",
+    path: ["plannedEndDate"],
 });
 
 type TaskFormValues = z.infer<typeof taskSchema>;
@@ -58,7 +61,7 @@ type TaskFormValues = z.infer<typeof taskSchema>;
 interface TaskFormProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSave: (data: Omit<Task, 'id' | 'subTasks' | 'changeHistory' | 'isCritical'>) => void;
+  onSave: (data: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>) => void;
   task: Task | null;
   users: User[];
   allTasks: Task[];
