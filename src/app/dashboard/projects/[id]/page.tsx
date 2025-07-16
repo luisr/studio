@@ -18,25 +18,29 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     initialProjects.find((p) => p.id === params.id)
   );
   
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>(project?.tasks || []);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    if (project) {
-      setFilteredTasks(project.tasks);
+    const currentProject = initialProjects.find((p) => p.id === params.id);
+    if (currentProject) {
+      setProject(currentProject);
+      setFilteredTasks(currentProject.tasks);
     }
-  }, [project]);
+  }, [params.id]);
   
   if (!project) {
-    // This will still be caught by Next.js's notFound mechanism
-    // even in a client component, if thrown during initial render.
-    notFound();
+    // Render a loading state or skeleton here to avoid calling notFound on client-side re-renders
+    // For now, returning null will prevent rendering until the project is found.
+    // If the project is never found, a better UX would be to show a "not found" message.
+    // notFound() should ideally be called from server components or during the initial server render.
+    return null; 
   }
 
   const handleTaskUpdate = (updatedTasks: Task[]) => {
     if(project) {
       const newProjectState = {...project, tasks: updatedTasks};
       setProject(newProjectState);
-      setFilteredTasks(newProjectState.tasks);
+      // The filter component will handle filtering this new state.
     }
   };
 
@@ -64,8 +68,8 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
         plannedBudget: 0,
         actualCost: 0,
         costVariance: 0,
-        spi: 0,
-        cpi: 0,
+        spi: '0.00',
+        cpi: '0.00',
       };
     }
     const tasks = project.tasks;
@@ -94,7 +98,7 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
 
 
   const formatCurrency = (value: number) => {
-    const [formattedValue, setFormattedValue] = useState(`R$ ${value.toFixed(2)}`);
+    const [formattedValue, setFormattedValue] = useState('');
 
     useEffect(() => {
       setFormattedValue(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value));
@@ -102,6 +106,20 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   
     return formattedValue;
   }
+  
+  const formatDate = (dateString: string) => {
+    const [formattedDate, setFormattedDate] = useState('');
+  
+    useEffect(() => {
+      setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }));
+    }, [dateString]);
+  
+    return formattedDate;
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
