@@ -45,6 +45,21 @@ const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   return ids;
 };
 
+const formatEffort = (hours: number): string => {
+    if (typeof hours !== 'number' || isNaN(hours)) return '-';
+
+    const months = hours / 160;
+    if (months >= 1 && months % 1 === 0) return `${months} mes${months > 1 ? 'es' : ''}`;
+
+    const weeks = hours / 40;
+    if (weeks >= 1 && weeks % 1 === 0) return `${weeks} sem`;
+
+    const days = hours / 8;
+    if (days >= 1 && days % 1 === 0) return `${days}d`;
+    
+    return `${hours}h`;
+}
+
 export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -200,6 +215,14 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
           <TableCell>
             <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
           </TableCell>
+          <TableCell>
+             <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger>{formatEffort(task.plannedHours)}</TooltipTrigger>
+                    <TooltipContent><p>{task.plannedHours} horas</p></TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+          </TableCell>
           <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
@@ -254,6 +277,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Prioridade</TableHead>
+                <TableHead>Esforço Plan.</TableHead>
                 <TableHead>Data Fim Plan.</TableHead>
                 <TableHead>CPI</TableHead>
                 <TableHead>SPI</TableHead>
@@ -268,7 +292,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 tasks.map(task => renderTask(task))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                  <TableCell colSpan={9 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
                     Nenhuma tarefa encontrada.
                   </TableCell>
                 </TableRow>

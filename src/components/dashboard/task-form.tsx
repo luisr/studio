@@ -1,7 +1,7 @@
 // src/components/dashboard/task-form.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,6 +39,15 @@ import { format } from "date-fns";
 import { Switch } from "../ui/switch";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 
+type EffortUnit = 'hours' | 'days' | 'weeks' | 'months';
+
+const conversionFactors: Record<EffortUnit, number> = {
+  hours: 1,
+  days: 8,
+  weeks: 40,
+  months: 160, 
+};
+
 const taskSchema = z.object({
   name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
   assignee: z.string().min(1, { message: "Selecione um responsável." }),
@@ -46,8 +55,17 @@ const taskSchema = z.object({
   priority: z.enum(["Baixa", "Média", "Alta"]),
   plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
+  
+  // These fields are for the form UI
+  plannedEffort: z.coerce.number().min(0),
+  plannedEffortUnit: z.enum(['hours', 'days', 'weeks', 'months']),
+  actualEffort: z.coerce.number().min(0),
+  actualEffortUnit: z.enum(['hours', 'days', 'weeks', 'months']),
+  
+  // These will be calculated and passed on save
   plannedHours: z.coerce.number().min(0, { message: "As horas planejadas devem ser positivas." }),
   actualHours: z.coerce.number().min(0, { message: "As horas reais devem ser positivas." }),
+
   parentId: z.string().nullable().optional(),
   isMilestone: z.boolean().optional(),
   dependencies: z.array(z.string()).optional(),
@@ -66,6 +84,13 @@ interface TaskFormProps {
   project: Project;
 }
 
+const getBestEffortUnit = (hours: number): { value: number, unit: EffortUnit } => {
+    if (hours >= 160) return { value: hours / 160, unit: 'months' };
+    if (hours >= 40) return { value: hours / 40, unit: 'weeks' };
+    if (hours >= 8) return { value: hours / 8, unit: 'days' };
+    return { value: hours, unit: 'hours' };
+}
+
 export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFormProps) {
   const { team: users, tasks: allTasks, configuration } = project;
   
@@ -76,6 +101,10 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
       assignee: "",
       status: configuration.statuses.find(s => s.isDefault)?.name || "",
       priority: "Média",
+      plannedEffort: 0,
+      plannedEffortUnit: 'hours',
+      actualEffort: 0,
+      actualEffortUnit: 'hours',
       plannedHours: 0,
       actualHours: 0,
       parentId: null,
@@ -87,6 +116,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   useEffect(() => {
     if (isOpen) {
       if (task) {
+         const plannedEffortDisplay = getBestEffortUnit(task.plannedHours);
+         const actualEffortDisplay = getBestEffortUnit(task.actualHours);
         form.reset({
           name: task.name,
           assignee: task.assignee.id,
@@ -94,8 +125,12 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           priority: task.priority || 'Média',
           plannedStartDate: new Date(task.plannedStartDate),
           plannedEndDate: new Date(task.plannedEndDate),
-          plannedHours: task.plannedHours,
-          actualHours: task.actualHours,
+          plannedEffort: plannedEffortDisplay.value,
+          plannedEffortUnit: plannedEffortDisplay.unit,
+          actualEffort: actualEffortDisplay.value,
+          actualEffortUnit: actualEffortDisplay.unit,
+          plannedHours: task.plannedHours, // keep original values
+          actualHours: task.actualHours, // keep original values
           parentId: task.parentId,
           isMilestone: task.isMilestone,
           dependencies: task.dependencies || [],
@@ -108,6 +143,10 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           priority: 'Média',
           plannedStartDate: new Date(),
           plannedEndDate: new Date(),
+          plannedEffort: 0,
+          plannedEffortUnit: 'hours',
+          actualEffort: 0,
+          actualEffortUnit: 'hours',
           plannedHours: 0,
           actualHours: 0,
           parentId: null,
@@ -121,9 +160,19 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   const onSubmit = (data: TaskFormValues) => {
     const selectedUser = users.find(u => u.id === data.assignee);
     if (!selectedUser) return;
+
+    // Convert effort from UI to hours for storage
+    const plannedHours = data.plannedEffort * conversionFactors[data.plannedEffortUnit];
+    const actualHours = data.actualEffort * conversionFactors[data.actualEffortUnit];
     
+    // Create the object to save, excluding UI-only fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { plannedEffort, plannedEffortUnit, actualEffort, actualEffortUnit, ...dataToSave } = data;
+
     onSave({
-        ...data,
+        ...dataToSave,
+        plannedHours,
+        actualHours,
         parentId: data.parentId === "null" ? null : data.parentId,
         assignee: selectedUser,
         plannedStartDate: data.plannedStartDate.toISOString(),
@@ -395,33 +444,76 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                 )}
               />
             </div>
-             <div className="grid grid-cols-2 gap-4">
-               <FormField
-                  control={form.control}
-                  name="plannedHours"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Horas Planejadas</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="Ex: 80" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="actualHours"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Horas Reais</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="Ex: 95" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormItem>
+                    <FormLabel>Esforço Planejado</FormLabel>
+                    <div className="flex gap-2">
+                        <FormField
+                        control={form.control}
+                        name="plannedEffort"
+                        render={({ field }) => (
+                            <FormControl>
+                                <Input type="number" placeholder="Ex: 80" {...field} />
+                            </FormControl>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="plannedEffortUnit"
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="hours">Horas</SelectItem>
+                                    <SelectItem value="days">Dias</SelectItem>
+                                    <SelectItem value="weeks">Semanas</SelectItem>
+                                    <SelectItem value="months">Meses</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                        />
+                    </div>
+                    <FormMessage>{form.formState.errors.plannedHours?.message}</FormMessage>
+                </FormItem>
+                 <FormItem>
+                    <FormLabel>Esforço Real</FormLabel>
+                    <div className="flex gap-2">
+                        <FormField
+                        control={form.control}
+                        name="actualEffort"
+                        render={({ field }) => (
+                            <FormControl>
+                                <Input type="number" placeholder="Ex: 95" {...field} />
+                            </FormControl>
+                        )}
+                        />
+                         <FormField
+                        control={form.control}
+                        name="actualEffortUnit"
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="hours">Horas</SelectItem>
+                                    <SelectItem value="days">Dias</SelectItem>
+                                    <SelectItem value="weeks">Semanas</SelectItem>
+                                    <SelectItem value="months">Meses</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                        />
+                    </div>
+                    <FormMessage>{form.formState.errors.actualHours?.message}</FormMessage>
+                </FormItem>
             </div>
 
             <FormField
