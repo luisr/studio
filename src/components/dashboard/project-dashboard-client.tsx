@@ -16,25 +16,35 @@ import { AiAnalysisTab } from "./ai-analysis-tab";
 import { projects as initialProjects } from "@/lib/data";
 
 const nestTasks = (tasks: Task[]): Task[] => {
-    const taskMap = new Map(tasks.map(t => [t.id, { ...t, subTasks: [] }]));
-    const rootTasks: Task[] = [];
+    const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
+    tasks.forEach(t => taskMap.set(t.id, { ...t, subTasks: [] }));
 
-    for (const task of tasks) {
+    const rootTasks: (Task & { subTasks: Task[] })[] = [];
+
+    tasks.forEach(task => {
         if (task.parentId && taskMap.has(task.parentId)) {
             const parent = taskMap.get(task.parentId);
-            parent?.subTasks?.push(taskMap.get(task.id)!);
+            const currentTask = taskMap.get(task.id);
+            if(parent && currentTask) {
+                parent.subTasks.push(currentTask);
+            }
         } else {
-            rootTasks.push(taskMap.get(task.id)!);
+            const currentTask = taskMap.get(task.id);
+            if (currentTask) {
+                 rootTasks.push(currentTask);
+            }
         }
-    }
+    });
     return rootTasks;
 };
 
 const flattenTasks = (tasks: Task[]): Task[] => {
   let allTasks: Task[] = [];
   for (const task of tasks) {
-    allTasks.push(task);
-    if (task.subTasks) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { subTasks, ...taskWithoutSubtasks } = task;
+    allTasks.push(taskWithoutSubtasks);
+    if (task.subTasks && task.subTasks.length > 0) {
       allTasks = allTasks.concat(flattenTasks(task.subTasks));
     }
   }
@@ -43,25 +53,30 @@ const flattenTasks = (tasks: Task[]): Task[] => {
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestTasks(project.tasks));
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isClient, setIsClient] = useState(false);
+  
+  const nestedTasks = useMemo(() => nestTasks(project.tasks), [project.tasks]);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestedTasks);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  useEffect(() => {
+    setFilteredTasks(nestedTasks);
+  }, [nestedTasks]);
+
+
   // Atualiza o estado do projeto se a propriedade inicial mudar
   useEffect(() => {
     setProject(initialProject);
-    setFilteredTasks(nestTasks(initialProject.tasks));
   }, [initialProject]);
 
   const handleTaskUpdate = (updatedTasks: Task[]) => {
     const newProjectState = { ...project, tasks: updatedTasks };
     setProject(newProjectState);
-    setFilteredTasks(nestTasks(updatedTasks));
   };
   
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory'> & { parentId?: string | null }) => {
@@ -72,7 +87,24 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         // Lógica de atualização
         newTasks = flatTasks.map(t => {
             if (t.id === editingTask.id) {
-                return { ...t, ...taskData };
+                const changes: Partial<Task> = {};
+                const newChangeHistory = [...(t.changeHistory || [])];
+
+                Object.keys(taskData).forEach(key => {
+                    const typedKey = key as keyof typeof taskData;
+                    if (t[typedKey] !== taskData[typedKey]) {
+                        newChangeHistory.push({
+                            fieldChanged: typedKey,
+                            oldValue: String(t[typedKey]),
+                            newValue: String(taskData[typedKey]),
+                            user: 'Usuário',
+                            timestamp: new Date().toISOString(),
+                            justification: 'Atualização via formulário'
+                        });
+                    }
+                });
+
+                return { ...t, ...taskData, changeHistory: newChangeHistory };
             }
             return t;
         });
@@ -83,7 +115,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             id: `task-${Date.now()}`,
             subTasks: [],
             changeHistory: [],
-            isCritical: false, // Default value
+            isCritical: false, 
         };
         newTasks = [...flatTasks, newTask];
     }
@@ -124,11 +156,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const calculateTotalProgress = useMemo(() => {
-    return (tasks: Task[]): number => {
+    const calculate = (tasks: Task[]): number => {
       if (!tasks || tasks.length === 0) return 0;
       
       const totalWeightedProgress = tasks.reduce((acc, task) => {
-          const progress = task.status === 'Concluído' ? 100 : (task.subTasks && task.subTasks.length > 0 ? calculateTotalProgress(task.subTasks) : 0);
+          const progress = task.status === 'Concluído' ? 100 : (task.subTasks && task.subTasks.length > 0 ? calculate(task.subTasks) : 0);
           return acc + (progress * (task.plannedHours || 1));
       }, 0);
   
@@ -138,6 +170,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   
       return Math.round(totalWeightedProgress / totalHours);
     }
+    return calculate;
   }, []);
   
   const projectKPIs = useMemo(() => {
@@ -155,8 +188,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
     const earnedValue = overallProgress / 100 * totalPlannedHours;
     
-    const spi = totalPlannedHours > 0 ? (earnedValue / totalPlannedHours) : 1;
-    const cpi = totalActualHours > 0 ? (earnedValue / totalActualHours) : 1;
+    const spi = totalPlannedHours > 0 && earnedValue > 0 ? (earnedValue / totalPlannedHours) : 1;
+    const cpi = totalActualHours > 0 && earnedValue > 0 ? (earnedValue / totalActualHours) : 1;
     
     return {
       totalTasks: totalTasks,
@@ -212,7 +245,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             <TabsContent value="tabela">
               <Card>
                 <CardContent className="p-0">
-                  <TaskFilters tasks={nestTasks(project.tasks)} onFilterChange={setFilteredTasks} />
+                  <TaskFilters tasks={nestedTasks} onFilterChange={setFilteredTasks} />
                   <TasksTable 
                     tasks={filteredTasks} 
                     allTasks={project.tasks} 

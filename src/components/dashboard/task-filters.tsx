@@ -1,7 +1,7 @@
 // src/components/dashboard/task-filters.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ interface TaskFiltersProps {
     onFilterChange: (filteredTasks: Task[]) => void;
 }
 
-const filterTasks = (tasks: Task[], searchTerm: string, statusFilter: string): Task[] => {
+const filterTasksRecursive = (tasks: Task[], searchTerm: string, statusFilter: string): Task[] => {
     let results: Task[] = [];
     
     for (const task of tasks) {
@@ -22,15 +22,12 @@ const filterTasks = (tasks: Task[], searchTerm: string, statusFilter: string): T
         const matchesStatus = statusFilter === "all" || task.status === statusFilter;
 
         let subTasks: Task[] = [];
-        if (task.subTasks) {
-            subTasks = filterTasks(task.subTasks, searchTerm, statusFilter);
+        if (task.subTasks && task.subTasks.length > 0) {
+            subTasks = filterTasksRecursive(task.subTasks, searchTerm, statusFilter);
         }
 
-        if (matchesSearch && matchesStatus) {
-            results.push({ ...task, subTasks: subTasks });
-        } else if (subTasks.length > 0) {
-            // Include parent if any subtask matches
-            results.push({ ...task, subTasks: subTasks });
+        if ((matchesSearch && matchesStatus) || subTasks.length > 0) {
+            results.push({ ...task, subTasks });
         }
     }
 
@@ -42,7 +39,7 @@ export function TaskFilters({ tasks, onFilterChange }: TaskFiltersProps) {
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    const filtered = filterTasks(tasks, searchTerm, statusFilter);
+    const filtered = filterTasksRecursive(tasks, searchTerm, statusFilter);
     onFilterChange(filtered);
 
   }, [searchTerm, statusFilter, tasks, onFilterChange]);
