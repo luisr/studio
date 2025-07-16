@@ -26,6 +26,9 @@ export const defaultConfiguration: ProjectConfiguration = {
     },
     customKpis: [],
     customCharts: [],
+    customFieldDefinitions: [
+      { id: 'sprint', name: 'Sprint', type: 'text' },
+    ],
 }
 
 export const projects: Project[] = [
@@ -42,9 +45,6 @@ export const projects: Project[] = [
     plannedBudget: 500000,
     actualCost: 550000,
     configuration: defaultConfiguration,
-    customFieldDefinitions: [
-      { id: 'sprint', name: 'Sprint', type: 'text' },
-    ],
     kpis: {
       'Variação de Prazo (dias)': 15,
       'Variação de Custo (R$)': -50000,

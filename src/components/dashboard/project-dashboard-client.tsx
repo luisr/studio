@@ -274,7 +274,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const handleExportTasks = () => {
     const dataToExport = project.tasks.map(task => {
       const customFieldsData: {[key: string]: any} = {};
-      project.customFieldDefinitions?.forEach(def => {
+      project.configuration.customFieldDefinitions?.forEach(def => {
           customFieldsData[def.name] = task.customFields?.[def.id] ?? '';
       });
 
@@ -355,7 +355,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     const usersMap = new Map<string, User>(project.team.map(u => [u.id, u]));
     const usersByNameMap = new Map<string, User>(project.team.map(u => [u.name.toLowerCase(), u]));
 
-    const newCustomFieldDefs: CustomFieldDefinition[] = [...(project.customFieldDefinitions || [])];
+    const newCustomFieldDefs: CustomFieldDefinition[] = [...(project.configuration.customFieldDefinitions || [])];
     const newCustomFieldMap = new Map<string, string>(); // csvHeader -> customFieldId
 
     Object.entries(mapping).forEach(([csvHeader, mapInfo]) => {
@@ -454,7 +454,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     // Update the state once with all new data
     setProject(prev => {
       const newActualCost = allTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0); // Assuming a fixed rate for simplicity
-      return { ...prev, tasks: allTasks, customFieldDefinitions: newCustomFieldDefs, actualCost: newActualCost };
+      return { 
+        ...prev, 
+        tasks: allTasks,
+        configuration: { ...prev.configuration, customFieldDefinitions: newCustomFieldDefs },
+        actualCost: newActualCost 
+      };
     });
 
     toast({
@@ -499,15 +504,15 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     // Custom KPIs
     const customKpisCalculated = (configuration.customKpis || []).map(kpiDef => {
       let value: number | string = 0;
-      const relevantTasks = tasks.filter(t => typeof t[kpiDef.field] === 'number');
+      const relevantTasks = tasks.filter(t => typeof (t as any)[kpiDef.field] === 'number');
 
       if (relevantTasks.length > 0) {
         switch (kpiDef.aggregation) {
           case 'sum':
-            value = relevantTasks.reduce((acc, t) => acc + (t[kpiDef.field] as number), 0);
+            value = relevantTasks.reduce((acc, t) => acc + ((t as any)[kpiDef.field] as number), 0);
             break;
           case 'average':
-            value = relevantTasks.reduce((acc, t) => acc + (t[kpiDef.field] as number), 0) / relevantTasks.length;
+            value = relevantTasks.reduce((acc, t) => acc + ((t as any)[kpiDef.field] as number), 0) / relevantTasks.length;
             value = value.toFixed(2);
             break;
           case 'count':
@@ -628,7 +633,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
         projectConfiguration={project.configuration}
-        customFields={project.customFieldDefinitions || []}
         onSave={handleConfigUpdate}
       />
     </>

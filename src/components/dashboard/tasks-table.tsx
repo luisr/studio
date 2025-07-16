@@ -203,7 +203,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
           <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
           <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
-          {project.customFieldDefinitions?.map(fieldDef => (
+          {project.configuration.customFieldDefinitions?.map(fieldDef => (
              <TableCell key={fieldDef.id}>
                 {task.customFields?.[fieldDef.id] ?? '-'}
              </TableCell>
@@ -257,7 +257,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 <TableHead>Data Fim Plan.</TableHead>
                 <TableHead>CPI</TableHead>
                 <TableHead>SPI</TableHead>
-                {project.customFieldDefinitions?.map(fieldDef => (
+                {project.configuration.customFieldDefinitions?.map(fieldDef => (
                     <TableHead key={fieldDef.id}>{fieldDef.name}</TableHead>
                 ))}
                 <TableHead className='no-print'>Ações</TableHead>
@@ -268,7 +268,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 tasks.map(task => renderTask(task))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8 + (project.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                  <TableCell colSpan={8 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
                     Nenhuma tarefa encontrada.
                   </TableCell>
                 </TableRow>

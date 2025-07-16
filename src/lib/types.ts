@@ -35,13 +35,13 @@ export interface CustomKpiDefinition {
   icon: 'BarChart' | 'Clock' | 'DollarSign' | 'ListTodo' | 'Target' | 'AlertTriangle';
 }
 
-export type ChartType = 'bar' | 'pie';
+export type ChartType = 'bar' | 'pie' | 'line' | 'horizontalBar';
 
 export interface CustomChartDefinition {
   id: string;
   name: string;
   type: ChartType;
-  // For Bar charts
+  // For Bar, Horizontal Bar, and Line charts
   xAxisField?: 'status' | 'priority' | 'assignee' | string; // string for custom fields
   yAxisField?: 'plannedHours' | 'actualHours';
   yAxisAggregation?: 'sum' | 'average';
@@ -55,6 +55,7 @@ export interface ProjectConfiguration {
     visibleKpis: Record<string, boolean>;
     customKpis: CustomKpiDefinition[];
     customCharts?: CustomChartDefinition[];
+    customFieldDefinitions: CustomFieldDefinition[];
 }
 
 export interface Task {
@@ -98,6 +99,5 @@ export interface Project {
     [key: string]: number | string;
   };
   baselineSavedAt?: string;
-  customFieldDefinitions?: CustomFieldDefinition[];
   configuration: ProjectConfiguration;
 }

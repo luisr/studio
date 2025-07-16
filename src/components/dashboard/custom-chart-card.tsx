@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import type { Task, CustomChartDefinition } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Legend, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Legend, ResponsiveContainer, Line, LineChart } from 'recharts';
 
 interface CustomChartCardProps {
   chartDef: CustomChartDefinition;
@@ -38,7 +38,7 @@ export function CustomChartCard({ chartDef, tasks }: CustomChartCardProps) {
     }
 
     const groupedData = tasks.reduce((acc, task) => {
-      const keyField = chartDef.type === 'bar' ? chartDef.xAxisField : chartDef.segmentField;
+      const keyField = chartDef.type === 'pie' ? chartDef.segmentField : chartDef.xAxisField;
       if (!keyField) return acc;
       
       const key = getFieldValue(task, keyField);
@@ -56,7 +56,7 @@ export function CustomChartCard({ chartDef, tasks }: CustomChartCardProps) {
     }, {} as Record<string, { count: number; plannedHours: number; actualHours: number, tasks: Task[] }>);
 
 
-    if (chartDef.type === 'bar') {
+    if (chartDef.type === 'bar' || chartDef.type === 'horizontalBar' || chartDef.type === 'line') {
        return Object.entries(groupedData).map(([name, data]) => {
             let value;
             if(chartDef.yAxisAggregation === 'average') {
@@ -95,6 +95,55 @@ export function CustomChartCard({ chartDef, tasks }: CustomChartCardProps) {
       </Card>
     )
   }
+  
+  const renderChart = () => {
+    switch (chartDef.type) {
+      case 'bar':
+        return (
+          <BarChart data={chartData} accessibilityLayer>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => String(value).slice(0, 15) + (String(value).length > 15 ? '...' : '')}/>
+            <YAxis />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="value" fill="hsl(var(--chart-3))" name={chartDef.name} radius={4} />
+          </BarChart>
+        );
+      case 'horizontalBar':
+        return (
+          <BarChart data={chartData} layout="vertical" accessibilityLayer>
+            <CartesianGrid horizontal={false} />
+            <XAxis type="number" />
+            <YAxis type="category" dataKey="name" width={80} tickLine={false} axisLine={false} tickFormatter={(value) => String(value).slice(0, 10) + (String(value).length > 10 ? '...' : '')}/>
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="value" fill="hsl(var(--chart-4))" name={chartDef.name} radius={4} />
+          </BarChart>
+        )
+      case 'line':
+        return (
+          <LineChart data={chartData} accessibilityLayer>
+             <CartesianGrid vertical={false} />
+             <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => String(value).slice(0, 15) + (String(value).length > 15 ? '...' : '')}/>
+             <YAxis />
+             <ChartTooltip content={<ChartTooltipContent />} />
+             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" name={chartDef.name} />
+          </LineChart>
+        );
+      case 'pie':
+        return (
+          <PieChart>
+            <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+              {chartData.map((entry) => (
+                <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+              ))}
+            </Pie>
+            <Legend />
+          </PieChart>
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <Card>
@@ -102,31 +151,9 @@ export function CustomChartCard({ chartDef, tasks }: CustomChartCardProps) {
         <CardTitle>{chartDef.name}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={{}} className="h-[300px] w-full">
-          {chartDef.type === 'bar' ? (
-             <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} accessibilityLayer>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 15) + '...'}/>
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="hsl(var(--chart-3))" name={chartDef.name} radius={4} />
-                </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                    <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                    </Pie>
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-          )}
-        </ChartContainer>
+        <ResponsiveContainer width="100%" height={300}>
+            {renderChart()}
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );

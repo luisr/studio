@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, ChartType } from "@/lib/types";
+import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, ChartType, CustomFieldDefinition } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, PieChart } from "lucide-react";
+import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, PieChart, LineChart as LineChartIcon, BarChart2 } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
@@ -65,7 +65,6 @@ interface ProjectSettingsModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   projectConfiguration: ProjectConfiguration;
-  customFields: ProjectConfiguration['customFieldDefinitions'];
   onSave: (newConfig: ProjectConfiguration) => void;
 }
 
@@ -73,13 +72,13 @@ export function ProjectSettingsModal({
   isOpen,
   onOpenChange,
   projectConfiguration,
-  customFields = [],
   onSave,
 }: ProjectSettingsModalProps) {
   const [statuses, setStatuses] = useState<StatusDefinition[]>([]);
   const [visibleKpis, setVisibleKpis] = useState<Record<string, boolean>>({});
   const [customKpis, setCustomKpis] = useState<CustomKpiDefinition[]>([]);
   const [customCharts, setCustomCharts] = useState<CustomChartDefinition[]>([]);
+  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
 
 
   useEffect(() => {
@@ -89,11 +88,12 @@ export function ProjectSettingsModal({
       setVisibleKpis(JSON.parse(JSON.stringify(projectConfiguration.visibleKpis)));
       setCustomKpis(JSON.parse(JSON.stringify(projectConfiguration.customKpis || [])));
       setCustomCharts(JSON.parse(JSON.stringify(projectConfiguration.customCharts || [])));
+      setCustomFields(JSON.parse(JSON.stringify(projectConfiguration.customFieldDefinitions || [])));
     }
   }, [isOpen, projectConfiguration]);
 
   const handleSave = () => {
-    onSave({ statuses, visibleKpis, customKpis, customCharts });
+    onSave({ ...projectConfiguration, statuses, visibleKpis, customKpis, customCharts, customFieldDefinitions: customFields });
     onOpenChange(false);
   };
 
@@ -335,15 +335,20 @@ export function ProjectSettingsModal({
                           className="flex-1 font-semibold"
                         />
                          <Select value={chart.type} onValueChange={(v) => handleCustomChartChange(chart.id, 'type', v)}>
-                            <SelectTrigger className="w-[150px]">
+                            <SelectTrigger className="w-[180px]">
                                 <div className="flex items-center gap-2">
-                                    {chart.type === 'bar' ? <BarChart className="h-4 w-4" /> : <PieChart className="h-4 w-4" />}
+                                    {chart.type === 'bar' && <BarChart className="h-4 w-4" />}
+                                    {chart.type === 'pie' && <PieChart className="h-4 w-4" />}
+                                    {chart.type === 'line' && <LineChartIcon className="h-4 w-4" />}
+                                    {chart.type === 'horizontalBar' && <BarChart2 className="h-4 w-4" />}
                                     <SelectValue/>
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="bar">Gráfico de Barras</SelectItem>
-                                <SelectItem value="pie">Gráfico de Pizza</SelectItem>
+                                <SelectItem value="bar">Barras Verticais</SelectItem>
+                                <SelectItem value="horizontalBar">Barras Horizontais</SelectItem>
+                                <SelectItem value="line">Linha</SelectItem>
+                                <SelectItem value="pie">Pizza</SelectItem>
                             </SelectContent>
                         </Select>
                         <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomChart(chart.id)}>
@@ -351,7 +356,7 @@ export function ProjectSettingsModal({
                         </Button>
                     </div>
 
-                    {chart.type === 'bar' && (
+                    {(chart.type === 'bar' || chart.type === 'horizontalBar' || chart.type === 'line') && (
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
                           <Label>Eixo X (Categorias)</Label>

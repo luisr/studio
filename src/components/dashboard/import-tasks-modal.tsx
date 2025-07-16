@@ -64,7 +64,7 @@ export function ImportTasksModal({
 
      csvHeaders.forEach(header => {
         const matchingKey = taskFieldKeys.find(key => 
-          TASK_FIELDS[key].toLowerCase() === header.toLowerCase() || key.toLowerCase() === header.toLowerCase()
+          TASK_FIELDS[key].toLowerCase() === header.toLowerCase().trim() || key.toLowerCase() === header.toLowerCase().trim()
         );
         newMapping[header] = { type: matchingKey || 'ignore' };
      });
