@@ -1,7 +1,7 @@
 // src/components/dashboard/gantt-chart.tsx
 "use client"
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { Project, Task } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { eachDayOfInterval, format, differenceInDays, startOfDay } from 'date-fns';
