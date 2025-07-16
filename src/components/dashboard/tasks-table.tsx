@@ -13,13 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, CornerDownRight, Target, ChevronRight } from "lucide-react";
+import { Edit, Trash2, CornerDownRight, Target, ChevronRight, Columns, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { TasksTableToolbar, TasksTableBulkActionsToolbar } from './tasks-table-toolbar';
 import { ViewActions } from './view-actions';
 import { Checkbox } from '../ui/checkbox';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -62,11 +63,30 @@ const formatEffort = (hours: number): string => {
     return `${hours}h`;
 }
 
+type ColumnVisibility = {
+  [key: string]: boolean;
+};
+
 export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask, onBulkAction }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const printableRef = useRef<HTMLDivElement>(null);
+
+  const defaultColumns = {
+    assignee: true,
+    status: true,
+    priority: true,
+    plannedHours: true,
+    plannedEndDate: true,
+    cpi: true,
+    spi: true,
+  };
+
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
+    ...defaultColumns
+  });
+
 
   const statusColorMap = useMemo(() => {
     return project.configuration.statuses.reduce((acc, status) => {
@@ -176,9 +196,12 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
       return 'N/A';
   }
   
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     if(!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
+    // Handle potential invalid date strings from custom fields
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -236,8 +259,8 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
               <span>{task.name}</span>
             </div>
           </TableCell>
-          <TableCell>{task.assignee.name}</TableCell>
-          <TableCell>
+          {columnVisibility.assignee && <TableCell>{task.assignee.name}</TableCell>}
+          {columnVisibility.status && <TableCell>
             <Badge variant="outline" style={{ 
                 backgroundColor: `${statusColorMap[task.status]}33`, // 20% opacity
                 color: statusColorMap[task.status],
@@ -245,26 +268,35 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
              }}>
                 {task.status}
             </Badge>
-          </TableCell>
-          <TableCell>
+          </TableCell>}
+          {columnVisibility.priority && <TableCell>
             <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
-          </TableCell>
-          <TableCell>
+          </TableCell>}
+          {columnVisibility.plannedHours && <TableCell>
              <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger>{formatEffort(task.plannedHours)}</TooltipTrigger>
                     <TooltipContent><p>{task.plannedHours} horas</p></TooltipContent>
                 </Tooltip>
             </TooltipProvider>
-          </TableCell>
-          <TableCell>{formatDate(task.plannedEndDate)}</TableCell>
-          <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>
-          <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
-          {project.configuration.customFieldDefinitions?.map(fieldDef => (
-             <TableCell key={fieldDef.id}>
-                {task.customFields?.[fieldDef.id] ?? '-'}
-             </TableCell>
-          ))}
+          </TableCell>}
+          {columnVisibility.plannedEndDate && <TableCell>{formatDate(task.plannedEndDate)}</TableCell>}
+          {columnVisibility.cpi && <TableCell className={cn(cpi !== 'N/A' && parseFloat(cpi) < 1 ? 'text-red-600' : 'text-green-600')}>{cpi}</TableCell>}
+          {columnVisibility.spi && <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>}
+          {project.configuration.customFieldDefinitions?.map(fieldDef => {
+              if (!columnVisibility[fieldDef.id] && columnVisibility[fieldDef.id] !== undefined) return null;
+              
+              let cellContent: React.ReactNode = task.customFields?.[fieldDef.id] ?? '-';
+              if (fieldDef.type === 'date') {
+                  cellContent = formatDate(task.customFields?.[fieldDef.id] as string);
+              }
+
+              return (
+                <TableCell key={fieldDef.id}>
+                    {cellContent}
+                </TableCell>
+              )
+          })}
           <TableCell className='no-print'>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
@@ -313,7 +345,41 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
         />
       ) : (
        <TasksTableToolbar onExpandAll={expandAll} onCollapseAll={collapseAll}>
-          <ViewActions contentRef={printableRef} />
+           <div className="flex items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Columns className="mr-2 h-4 w-4" />
+                        Colunas
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Exibir/Ocultar Colunas</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {Object.keys(defaultColumns).map(key => (
+                        <DropdownMenuCheckboxItem
+                            key={key}
+                            className="capitalize"
+                            checked={columnVisibility[key]}
+                            onCheckedChange={value => setColumnVisibility(prev => ({ ...prev, [key]: !!value }))}
+                        >
+                            {key.replace(/([A-Z])/g, ' $1')}
+                        </DropdownMenuCheckboxItem>
+                    ))}
+                     {project.configuration.customFieldDefinitions && project.configuration.customFieldDefinitions.length > 0 && <DropdownMenuSeparator />}
+                     {project.configuration.customFieldDefinitions?.map(def => (
+                         <DropdownMenuCheckboxItem
+                            key={def.id}
+                            checked={columnVisibility[def.id] !== false} // Show by default
+                            onCheckedChange={value => setColumnVisibility(prev => ({ ...prev, [def.id]: !!value }))}
+                        >
+                            {def.name}
+                        </DropdownMenuCheckboxItem>
+                     ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <ViewActions contentRef={printableRef} />
+          </div>
        </TasksTableToolbar>
       )}
        <div className="overflow-x-auto printable" ref={printableRef}>
@@ -331,15 +397,15 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                     Atividade
                   </div>
                 </TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Esforço Plan.</TableHead>
-                <TableHead>Data Fim Plan.</TableHead>
-                <TableHead>CPI</TableHead>
-                <TableHead>SPI</TableHead>
+                {columnVisibility.assignee && <TableHead>Responsável</TableHead>}
+                {columnVisibility.status && <TableHead>Status</TableHead>}
+                {columnVisibility.priority && <TableHead>Prioridade</TableHead>}
+                {columnVisibility.plannedHours && <TableHead>Esforço Plan.</TableHead>}
+                {columnVisibility.plannedEndDate && <TableHead>Data Fim Plan.</TableHead>}
+                {columnVisibility.cpi && <TableHead>CPI</TableHead>}
+                {columnVisibility.spi && <TableHead>SPI</TableHead>}
                 {project.configuration.customFieldDefinitions?.map(fieldDef => (
-                    <TableHead key={fieldDef.id}>{fieldDef.name}</TableHead>
+                   columnVisibility[fieldDef.id] !== false && <TableHead key={fieldDef.id}>{fieldDef.name}</TableHead>
                 ))}
                 <TableHead className='no-print'>Ações</TableHead>
               </TableRow>
@@ -349,7 +415,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 tasks.map(task => renderTask(task))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                  <TableCell colSpan={9 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
                     Nenhuma tarefa encontrada.
                   </TableCell>
                 </TableRow>

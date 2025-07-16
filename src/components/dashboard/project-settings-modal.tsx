@@ -186,6 +186,23 @@ export function ProjectSettingsModal({
     );
   };
 
+  const handleAddCustomField = () => {
+    setCustomFields(prev => [
+      ...prev,
+      { id: `cfield-${Date.now()}`, name: 'Novo Campo', type: 'text' }
+    ]);
+  };
+
+  const handleRemoveCustomField = (id: string) => {
+    setCustomFields(prev => prev.filter(field => field.id !== id));
+  };
+
+  const handleCustomFieldChange = (id: string, field: keyof CustomFieldDefinition, value: any) => {
+    setCustomFields(prev => 
+      prev.map(f => (f.id === id ? { ...f, [field]: value } : f))
+    );
+  };
+
   const allCategoricalFields = [
     ...chartCategoricalFields,
     ...(customFields || []).filter(f => f.type === 'text').map(f => ({ value: f.id, label: f.name }))
@@ -213,6 +230,40 @@ export function ProjectSettingsModal({
         </DialogHeader>
         
         <div className="py-4 space-y-6 flex-grow overflow-y-auto pr-4">
+
+           <div className="space-y-4">
+              <h4 className="font-semibold text-lg">Campos Personalizados</h4>
+               <div className="space-y-3">
+                  {customFields.map((field) => (
+                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-2 p-2 border rounded-md">
+                      <Input
+                        placeholder="Nome do Campo"
+                        value={field.name}
+                        onChange={(e) => handleCustomFieldChange(field.id, 'name', e.target.value)}
+                        className="col-span-2"
+                      />
+                      <Select value={field.type} onValueChange={(v) => handleCustomFieldChange(field.id, 'type', v)}>
+                          <SelectTrigger><SelectValue/></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Texto</SelectItem>
+                            <SelectItem value="number">Número</SelectItem>
+                            <SelectItem value="date">Data</SelectItem>
+                          </SelectContent>
+                      </Select>
+                       <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomField(field.id)} className="justify-self-end">
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+               </div>
+               <Button variant="outline" size="sm" onClick={handleAddCustomField}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Campo
+               </Button>
+            </div>
+            
+            <Separator />
+
             <div className="space-y-4">
                  <h4 className="font-semibold text-lg">Status das Tarefas</h4>
                  <div className="space-y-3">
