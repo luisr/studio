@@ -59,6 +59,8 @@ export interface ProjectConfiguration {
     customFieldDefinitions: CustomFieldDefinition[];
 }
 
+export type BulkAction = 'delete' | 'duplicate' | 'move';
+
 export interface Task {
   id: string;
   name: string;

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { Project, Task } from "@/lib/types";
+import type { Project, Task, BulkAction } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -17,8 +17,9 @@ import { Edit, Trash2, CornerDownRight, Target, ChevronRight } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { TasksTableToolbar } from './tasks-table-toolbar';
+import { TasksTableToolbar, TasksTableBulkActionsToolbar } from './tasks-table-toolbar';
 import { ViewActions } from './view-actions';
+import { Checkbox } from '../ui/checkbox';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -26,6 +27,7 @@ interface TasksTableProps {
   onTasksChange: (tasks: Task[]) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  onBulkAction: (action: BulkAction, taskIds: Set<string>, newParentId?: string | null) => void;
 }
 
 const priorityClasses: { [key: string]: string } = {
@@ -37,8 +39,8 @@ const priorityClasses: { [key: string]: string } = {
 const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   let ids: string[] = [];
   for (const task of tasks) {
+    ids.push(task.id);
     if (task.subTasks && task.subTasks.length > 0) {
-      ids.push(task.id);
       ids = ids.concat(getAllTaskIdsWithSubtasks(task.subTasks));
     }
   }
@@ -60,9 +62,10 @@ const formatEffort = (hours: number): string => {
     return `${hours}h`;
 }
 
-export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
+export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDeleteTask, onBulkAction }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const printableRef = useRef<HTMLDivElement>(null);
 
   const statusColorMap = useMemo(() => {
@@ -73,10 +76,11 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
   }, [project.configuration.statuses]);
 
 
-  // Expand all by default
+  // Expand all by default and reset selection when tasks change
   useEffect(() => {
     const allParentIds = getAllTaskIdsWithSubtasks(tasks);
     setExpandedRows(new Set(allParentIds));
+    setSelectedRows(new Set());
   }, [tasks]);
 
 
@@ -117,10 +121,8 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
 
     if (sourceTaskId === targetTaskId) return;
 
-    // Use a flat list of all tasks for easier manipulation
     let newTasks = [...project.tasks];
 
-    // Find the source task and update its parentId
     const sourceTaskIndex = newTasks.findIndex(t => t.id === sourceTaskId);
     if (sourceTaskIndex > -1) {
         newTasks[sourceTaskIndex].parentId = targetTaskId;
@@ -128,6 +130,31 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
     
     onTasksChange(newTasks);
   };
+
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked) {
+      setSelectedRows(new Set(getAllTaskIdsWithSubtasks(tasks)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (taskId: string, checked: boolean) => {
+    const newSelectedRows = new Set(selectedRows);
+    const taskAndSubtaskIds = getAllTaskIdsWithSubtasks(
+        project.tasks.filter(t => t.id === taskId)
+    );
+
+    if (checked) {
+        taskAndSubtaskIds.forEach(id => newSelectedRows.add(id));
+    } else {
+        taskAndSubtaskIds.forEach(id => newSelectedRows.delete(id));
+    }
+    setSelectedRows(newSelectedRows);
+  };
+
+  const isAllSelected = selectedRows.size > 0 && selectedRows.size === getAllTaskIdsWithSubtasks(tasks).length;
+  const isSomeSelected = selectedRows.size > 0 && !isAllSelected;
 
   const calculateSPI = (task: Task) => {
       const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
@@ -161,6 +188,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
   const renderTask = (task: Task, level: number = 0) => {
     const isExpanded = expandedRows.has(task.id);
     const hasSubtasks = task.subTasks && task.subTasks.length > 0;
+    const isSelected = selectedRows.has(task.id);
     const spi = calculateSPI(task);
     const cpi = calculateCPI(task);
 
@@ -176,9 +204,15 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
             draggedTaskId === task.id ? "opacity-50" : "opacity-100",
             level > 0 ? "bg-muted/50" : ""
           )}
+          data-state={isSelected ? "selected" : undefined}
         >
           <TableCell className="font-medium">
-            <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
+             <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                className="mr-2"
+              />
               {hasSubtasks ? (
                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleExpand(task.id)}>
                    <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
@@ -263,17 +297,40 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
     );
   };
 
+  const handleBulkActionWrapper = (action: BulkAction, newParentId?: string | null) => {
+    onBulkAction(action, selectedRows, newParentId);
+    setSelectedRows(new Set());
+  };
+
   return (
     <div className="w-full">
+      {selectedRows.size > 0 ? (
+        <TasksTableBulkActionsToolbar 
+          selectedCount={selectedRows.size}
+          onBulkAction={handleBulkActionWrapper}
+          allTasks={project.tasks}
+          selectedTaskIds={selectedRows}
+        />
+      ) : (
        <TasksTableToolbar onExpandAll={expandAll} onCollapseAll={collapseAll}>
           <ViewActions contentRef={printableRef} />
        </TasksTableToolbar>
+      )}
        <div className="overflow-x-auto printable" ref={printableRef}>
         <div className="printable-content">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">Atividade</TableHead>
+                <TableHead className="w-[40%]">
+                  <div className="flex items-center">
+                    <Checkbox
+                        checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                        onCheckedChange={handleSelectAll}
+                        className="mr-2"
+                    />
+                    Atividade
+                  </div>
+                </TableHead>
                 <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Prioridade</TableHead>
@@ -292,7 +349,7 @@ export function TasksTable({ tasks, project, onTasksChange, onEditTask, onDelete
                 tasks.map(task => renderTask(task))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                  <TableCell colSpan={10 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
                     Nenhuma tarefa encontrada.
                   </TableCell>
                 </TableRow>

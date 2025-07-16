@@ -274,6 +274,65 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
     handleTaskUpdate(newTasks);
   };
+
+  const handleBulkAction = (action: 'delete' | 'duplicate' | 'move', taskIds: Set<string>, newParentId?: string | null) => {
+    let currentTasks = [...project.tasks];
+
+    if (action === 'delete') {
+      const allIdsToDelete = new Set(taskIds);
+      taskIds.forEach(id => {
+          const getChildIds = (parentId: string) => {
+              currentTasks.forEach(t => {
+                  if (t.parentId === parentId) {
+                      allIdsToDelete.add(t.id);
+                      getChildIds(t.id);
+                  }
+              });
+          };
+          getChildIds(id);
+      });
+      
+      let newTasks = currentTasks.filter(t => !allIdsToDelete.has(t.id));
+      newTasks = newTasks.map(t => ({
+        ...t,
+        dependencies: t.dependencies.filter(depId => !allIdsToDelete.has(depId))
+      }));
+      handleTaskUpdate(newTasks);
+      toast({ title: `${allIdsToDelete.size} tarefas foram excluídas.`});
+    }
+
+    if (action === 'duplicate') {
+       const newTasks: Task[] = [];
+       const idMapping = new Map<string, string>();
+
+       taskIds.forEach(id => {
+            const originalTask = currentTasks.find(t => t.id === id);
+            if (originalTask && !originalTask.parentId) { // Only duplicate root selected tasks for simplicity
+                const newId = `task-${Date.now()}-${Math.random()}`;
+                idMapping.set(id, newId);
+                newTasks.push({
+                    ...originalTask,
+                    id: newId,
+                    name: `${originalTask.name} (Cópia)`,
+                    dependencies: [], // Dependencies are complex to duplicate correctly, so we clear them
+                });
+            }
+       });
+       handleTaskUpdate([...currentTasks, ...newTasks]);
+       toast({ title: `${newTasks.length} tarefas foram duplicadas.`});
+    }
+
+    if (action === 'move') {
+       const newTasks = currentTasks.map(task => {
+           if (taskIds.has(task.id)) {
+               return { ...task, parentId: newParentId === "root" ? null : newParentId };
+           }
+           return task;
+       });
+       handleTaskUpdate(newTasks);
+       toast({ title: `${taskIds.size} tarefas foram movidas.`});
+    }
+  };
   
   const handleExportTasks = () => {
     const dataToExport = project.tasks.map(task => {
@@ -598,6 +657,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     onTasksChange={handleTaskUpdate} 
                     onEditTask={handleEditTask}
                     onDeleteTask={handleDeleteTask}
+                    onBulkAction={handleBulkAction}
                   />
                 </CardContent>
               </Card>
