@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { AiAnalytics } from "@/components/dashboard/ai-analytics";
-import { TrendingDown, TrendingUp, DollarSign, ListTodo } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, TrendingDown, TrendingUp, BarChart, AlertTriangle, Target } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { TaskFilters } from "@/components/dashboard/task-filters";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
   const project = projects.find((p) => p.id === params.id);
@@ -16,49 +18,42 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   }
+  
+  const getCompletedTasks = (tasks: typeof project.tasks) => tasks.filter(t => t.status === 'Concluído').length;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       <ProjectHeader project={project} />
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 bg-muted/30">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            title="Variação de Prazo"
-            value={`${project.kpis['Variação de Prazo (dias)']} dias`}
-            icon={project.kpis['Variação de Prazo (dias)'] > 0 ? TrendingDown : TrendingUp}
-            description={project.kpis['Variação de Prazo (dias)'] > 0 ? "Atrasado" : "Adiantado ou no prazo"}
-            className={project.kpis['Variação de Prazo (dias)'] > 0 ? "border-destructive/50" : "border-green-500/50"}
-          />
-          <KpiCard
-            title="Variação de Custo"
-            value={formatCurrency(project.kpis['Variação de Custo (R$)'] as number)}
-            icon={DollarSign}
-            description={project.kpis['Variação de Custo (R$)'] > 0 ? "Acima do orçamento" : "Dentro do orçamento"}
-             className={project.kpis['Variação de Custo (R$)'] < 0 ? "border-destructive/50" : "border-green-500/50"}
-          />
-          <KpiCard
-            title="Progresso Total"
-            value={`${project.kpis['Progresso Total (%)']}%`}
-            icon={ListTodo}
-            description="Percentual de tarefas concluídas"
-          />
-          <KpiCard
-            title="Tarefas Críticas Atrasadas"
-            value={project.kpis['Tarefas Críticas Atrasadas']}
-            icon={TrendingDown}
-            description="Tarefas no caminho crítico com atraso"
-          />
+          <KpiCard title="Total de Atividades" value={project.tasks.length} icon={ListTodo} color="blue" />
+          <KpiCard title="Atividades Concluídas" value={getCompletedTasks(project.tasks)} icon={CheckCircle} color="green" />
+          <KpiCard title="Conclusão Geral" value={`${project.kpis['Progresso Total (%)']}%`} icon={BarChart} color="purple" />
+          <KpiCard title="Custo Planejado" value={formatCurrency(project.plannedBudget)} icon={DollarSign} color="blue" />
+          <KpiCard title="Custo Real" value={formatCurrency(project.actualCost)} icon={DollarSign} color="orange" />
+          <KpiCard title="Desvio de Custo" value={formatCurrency(project.kpis['Variação de Custo (R$)'] as number)} icon={AlertTriangle} color="red" />
+          <KpiCard title="SPI (Desempenho de Prazo)" value={project.kpis['Variação de Prazo (dias)']} icon={Clock} color="red" />
+          <KpiCard title="CPI (Desempenho de Custo)" value={1.12} icon={Target} color="red" />
         </div>
         
-        <div className="grid gap-6 lg:grid-cols-5">
-            <div className="lg:col-span-3">
-                <TasksTable tasks={project.tasks} />
-            </div>
-            <div className="lg:col-span-2">
-                <AiAnalytics project={project} />
-            </div>
-        </div>
-
+        <Tabs defaultValue="tabela">
+          <div className="flex justify-between items-end">
+            <TabsList>
+              <TabsTrigger value="tabela">Tabela</TabsTrigger>
+              <TabsTrigger value="gantt" disabled>Gantt</TabsTrigger>
+              <TabsTrigger value="kanban" disabled>Kanban</TabsTrigger>
+              <TabsTrigger value="graficos" disabled>Gráficos</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="tabela">
+            <Card>
+              <CardContent className="p-0">
+                 <TaskFilters />
+                 <TasksTable tasks={project.tasks} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
