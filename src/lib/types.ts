@@ -28,6 +28,7 @@ export interface Task {
   subTasks?: Task[];
   changeHistory: ChangeLog[];
   isCritical: boolean;
+  isSubtask?: boolean;
 }
 
 export interface Project {

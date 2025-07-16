@@ -15,11 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, GripVertical, CornerDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 
 interface TasksTableProps {
   tasks: Task[];
   allTasks: Task[]; // All tasks for context
   onTasksChange: (tasks: Task[]) => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
 const statusClasses: { [key: string]: string } = {
@@ -35,21 +38,8 @@ const priorityClasses: { [key: string]: string } = {
   'Baixa': 'bg-blue-500/20 text-blue-700',
 };
 
-const findTaskAndParent = (tasks: Task[], taskId: string): { task: Task | null; parent: Task | null } => {
-    for (const task of tasks) {
-        if (task.id === taskId) return { task, parent: null };
-        if (task.subTasks) {
-            for (const subTask of task.subTasks) {
-                if (subTask.id === taskId) return { task: subTask, parent: task };
-                // Add deeper recursion if needed
-            }
-        }
-    }
-    return { task: null, parent: null };
-};
 
-
-export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) {
+export function TasksTable({ tasks, allTasks, onTasksChange, onEditTask, onDeleteTask }: TasksTableProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, taskId: string) => {
@@ -58,7 +48,7 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault(); 
   };
 
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetTaskId: string) => {
@@ -68,12 +58,9 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
 
     if (sourceTaskId === targetTaskId) return;
 
-    // Deep clone to avoid direct state mutation
     let newTasks = JSON.parse(JSON.stringify(allTasks));
 
-    // Find source task and its parent to remove it from its original location
     let sourceTask: Task | null = null;
-    let sourceParent: Task[] | null = newTasks;
     
     const findAndRemove = (currentTasks: Task[], id: string): Task | null => {
         for (let i = 0; i < currentTasks.length; i++) {
@@ -93,7 +80,6 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
 
     if (!sourceTask) return;
 
-    // Find target task to add the source task as a subtask
     let targetTask: Task | null = null;
     const findTarget = (currentTasks: Task[], id: string) => {
         for (const task of currentTasks) {
@@ -112,24 +98,24 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
         if (!targetTask.subTasks) {
             targetTask.subTasks = [];
         }
+        // Remove from any parent subtask list if it exists
+        sourceTask.isSubtask = true;
         targetTask.subTasks.push(sourceTask);
         onTasksChange(newTasks);
     }
   };
 
   const calculateSPI = (task: Task) => {
-      // Simplified SPI: (Planned duration) / (Actual duration up to now)
-      // This is not a standard formula, but a placeholder for demonstration
       if (task.status === 'Concluído' && task.actualEndDate && task.actualStartDate) {
           const plannedDuration = new Date(task.plannedEndDate).getTime() - new Date(task.plannedStartDate).getTime();
           const actualDuration = new Date(task.actualEndDate).getTime() - new Date(task.actualStartDate).getTime();
+          if(actualDuration === 0) return (1).toFixed(2);
           return (plannedDuration / actualDuration).toFixed(2);
       }
       return 'N/A';
   }
 
   const calculateCPI = (task: Task) => {
-      // Simplified CPI: (Planned hours) / (Actual hours)
       if (task.actualHours > 0) {
           return (task.plannedHours / task.actualHours).toFixed(2);
       }
@@ -138,6 +124,7 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
   }
   
   const formatDate = (dateString: string) => {
+    if(!dateString) return '-';
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -182,12 +169,28 @@ export function TasksTable({ tasks, allTasks, onTasksChange }: TasksTableProps) 
           <TableCell className={cn(spi !== 'N/A' && parseFloat(spi) < 1 ? 'text-red-600' : 'text-green-600')}>{spi}</TableCell>
           <TableCell>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTask(task)}>
                 <Edit className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-              </Button>
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. Isso excluirá permanentemente a tarefa "{task.name}" e todas as suas subtarefas.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDeleteTask(task.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             </div>
           </TableCell>
         </TableRow>
