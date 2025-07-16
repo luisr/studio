@@ -7,13 +7,14 @@ import { notFound, useParams } from "next/navigation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
-import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit } from "lucide-react";
+import { CheckCircle, Clock, DollarSign, ListTodo, BarChart, AlertTriangle, Target, BrainCircuit, PieChart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskFilters } from "@/components/dashboard/task-filters";
 import { TaskForm } from "@/components/dashboard/task-form";
 import { AiAnalysisTab } from "./ai-analysis-tab";
 import { projects as initialProjects } from "@/lib/data";
+import { ChartsTab } from "./charts-tab";
 
 const nestTasks = (tasks: Task[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
@@ -236,9 +237,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     <BrainCircuit className="w-4 h-4 mr-2" />
                     Análise IA
                 </TabsTrigger>
+                 <TabsTrigger value="graficos">
+                    <PieChart className="w-4 h-4 mr-2" />
+                    Gráficos
+                </TabsTrigger>
                 <TabsTrigger value="gantt" disabled>Gantt</TabsTrigger>
                 <TabsTrigger value="kanban" disabled>Kanban</TabsTrigger>
-                <TabsTrigger value="graficos" disabled>Gráficos</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="tabela">
@@ -255,8 +259,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 </CardContent>
               </Card>
             </TabsContent>
-             <TabsContent value="ai_analysis">
+            <TabsContent value="ai_analysis">
               <AiAnalysisTab project={project} />
+            </TabsContent>
+            <TabsContent value="graficos">
+              <ChartsTab project={project} />
             </TabsContent>
           </Tabs>
         </div>
