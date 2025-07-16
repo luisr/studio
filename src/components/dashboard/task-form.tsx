@@ -110,6 +110,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
     
     onSave({
         ...data,
+        parentId: data.parentId === "null" ? null : data.parentId,
         assignee: selectedUser,
         plannedStartDate: data.plannedStartDate.toISOString(),
         plannedEndDate: data.plannedEndDate.toISOString(),
@@ -198,14 +199,14 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, users, allTasks }
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tarefa Pai</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value || 'null'}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Nenhuma (tarefa principal)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhuma (tarefa principal)</SelectItem>
+                          <SelectItem value="null">Nenhuma (tarefa principal)</SelectItem>
                           {possibleParents.map((parentTask) => (
                             <SelectItem key={parentTask.id} value={parentTask.id}>{parentTask.name}</SelectItem>
                           ))}
