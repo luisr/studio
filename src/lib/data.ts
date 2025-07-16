@@ -25,6 +25,7 @@ export const defaultConfiguration: ProjectConfiguration = {
         cpi: true,
     },
     customKpis: [],
+    customCharts: [],
 }
 
 export const projects: Project[] = [

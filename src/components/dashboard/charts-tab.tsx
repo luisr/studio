@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Legend } from 'recharts';
 import { ViewActions } from './view-actions';
+import { CustomChartCard } from './custom-chart-card';
 
 interface ChartsTabProps {
   project: Project;
@@ -85,6 +86,15 @@ export function ChartsTab({ project }: ChartsTabProps) {
                 </ChartContainer>
               </CardContent>
             </Card>
+
+            {/* Custom Charts */}
+            {project.configuration.customCharts?.map(chartDef => (
+              <CustomChartCard 
+                key={chartDef.id}
+                chartDef={chartDef}
+                tasks={project.tasks}
+              />
+            ))}
           </div>
         </div>
     </div>

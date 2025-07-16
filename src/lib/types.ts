@@ -35,10 +35,26 @@ export interface CustomKpiDefinition {
   icon: 'BarChart' | 'Clock' | 'DollarSign' | 'ListTodo' | 'Target' | 'AlertTriangle';
 }
 
+export type ChartType = 'bar' | 'pie';
+
+export interface CustomChartDefinition {
+  id: string;
+  name: string;
+  type: ChartType;
+  // For Bar charts
+  xAxisField?: 'status' | 'priority' | 'assignee' | string; // string for custom fields
+  yAxisField?: 'plannedHours' | 'actualHours';
+  yAxisAggregation?: 'sum' | 'average';
+  // For Pie charts
+  segmentField?: 'status' | 'priority' | 'assignee' | string;
+  valueField?: 'plannedHours' | 'actualHours' | 'count';
+}
+
 export interface ProjectConfiguration {
     statuses: StatusDefinition[];
     visibleKpis: Record<string, boolean>;
-    customKpis?: CustomKpiDefinition[];
+    customKpis: CustomKpiDefinition[];
+    customCharts?: CustomChartDefinition[];
 }
 
 export interface Task {

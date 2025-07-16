@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition } from "@/lib/types";
+import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, ChartType } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle } from "lucide-react";
+import { Trash2, GripVertical, Plus, BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, PieChart } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
@@ -49,11 +49,23 @@ const iconOptions: {value: string, label: string, icon: LucideIcon}[] = [
     { value: 'AlertTriangle', label: 'Alerta', icon: AlertTriangle },
 ];
 
+const chartCategoricalFields = [
+    { value: 'status', label: 'Status' },
+    { value: 'priority', label: 'Prioridade' },
+    { value: 'assignee', label: 'Responsável' },
+];
+
+const chartNumericalFields = [
+    { value: 'plannedHours', label: 'Horas Planejadas' },
+    { value: 'actualHours', label: 'Horas Reais' },
+];
+
 
 interface ProjectSettingsModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   projectConfiguration: ProjectConfiguration;
+  customFields: ProjectConfiguration['customFieldDefinitions'];
   onSave: (newConfig: ProjectConfiguration) => void;
 }
 
@@ -61,11 +73,13 @@ export function ProjectSettingsModal({
   isOpen,
   onOpenChange,
   projectConfiguration,
+  customFields = [],
   onSave,
 }: ProjectSettingsModalProps) {
   const [statuses, setStatuses] = useState<StatusDefinition[]>([]);
   const [visibleKpis, setVisibleKpis] = useState<Record<string, boolean>>({});
   const [customKpis, setCustomKpis] = useState<CustomKpiDefinition[]>([]);
+  const [customCharts, setCustomCharts] = useState<CustomChartDefinition[]>([]);
 
 
   useEffect(() => {
@@ -74,11 +88,12 @@ export function ProjectSettingsModal({
       setStatuses(JSON.parse(JSON.stringify(projectConfiguration.statuses)));
       setVisibleKpis(JSON.parse(JSON.stringify(projectConfiguration.visibleKpis)));
       setCustomKpis(JSON.parse(JSON.stringify(projectConfiguration.customKpis || [])));
+      setCustomCharts(JSON.parse(JSON.stringify(projectConfiguration.customCharts || [])));
     }
   }, [isOpen, projectConfiguration]);
 
   const handleSave = () => {
-    onSave({ statuses, visibleKpis, customKpis });
+    onSave({ statuses, visibleKpis, customKpis, customCharts });
     onOpenChange(false);
   };
 
@@ -86,7 +101,6 @@ export function ProjectSettingsModal({
     const newStatuses = [...statuses];
     (newStatuses[index] as any)[field] = value;
     
-    // Ensure only one is default/completed
     if (field === 'isDefault' && value === true) {
         newStatuses.forEach((s, i) => { if (i !== index) s.isDefault = false });
     }
@@ -109,9 +123,8 @@ export function ProjectSettingsModal({
   };
 
   const handleRemoveStatus = (index: number) => {
-    if (statuses.length > 1) { // Prevent deleting all statuses
+    if (statuses.length > 1) { 
         const newStatuses = statuses.filter((_, i) => i !== index);
-        // If the deleted status was default, make the first one the new default
         if (statuses[index].isDefault && newStatuses.length > 0) {
             newStatuses[0].isDefault = true;
         }
@@ -148,7 +161,35 @@ export function ProjectSettingsModal({
       prev.map(kpi => (kpi.id === id ? { ...kpi, [field]: value } : kpi))
     );
   };
+  
+  const handleAddCustomChart = () => {
+    setCustomCharts(prev => [
+      ...prev,
+      {
+        id: `cchart-${Date.now()}`,
+        name: 'Novo Gráfico',
+        type: 'bar',
+        xAxisField: 'status',
+        yAxisField: 'plannedHours',
+        yAxisAggregation: 'sum',
+      }
+    ]);
+  };
 
+  const handleRemoveCustomChart = (id: string) => {
+    setCustomCharts(prev => prev.filter(chart => chart.id !== id));
+  };
+
+  const handleCustomChartChange = (id: string, field: keyof CustomChartDefinition, value: any) => {
+    setCustomCharts(prev =>
+      prev.map(chart => (chart.id === id ? { ...chart, [field]: value } : chart))
+    );
+  };
+
+  const allCategoricalFields = [
+    ...chartCategoricalFields,
+    ...(customFields || []).filter(f => f.type === 'text').map(f => ({ value: f.id, label: f.name }))
+  ];
 
   const kpiLabels: Record<string, string> = {
     totalTasks: 'Total de Atividades',
@@ -163,7 +204,7 @@ export function ProjectSettingsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh]">
+      <DialogContent className="max-w-4xl h-[90vh]">
         <DialogHeader>
           <DialogTitle>Configurações do Projeto</DialogTitle>
           <DialogDescription>
@@ -172,7 +213,6 @@ export function ProjectSettingsModal({
         </DialogHeader>
         
         <div className="py-4 space-y-6 flex-grow overflow-y-auto pr-4">
-            {/* Status Configuration */}
             <div className="space-y-4">
                  <h4 className="font-semibold text-lg">Status das Tarefas</h4>
                  <div className="space-y-3">
@@ -212,7 +252,6 @@ export function ProjectSettingsModal({
             
             <Separator />
 
-            {/* KPI Configuration */}
             <div className="space-y-4">
                  <h4 className="font-semibold text-lg">Visibilidade dos KPIs Padrão</h4>
                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -227,7 +266,6 @@ export function ProjectSettingsModal({
 
             <Separator />
             
-            {/* Custom KPI Configuration */}
             <div className="space-y-4">
                  <h4 className="font-semibold text-lg">KPIs Personalizados</h4>
                  <div className="space-y-3">
@@ -280,6 +318,99 @@ export function ProjectSettingsModal({
                      Adicionar KPI Personalizado
                  </Button>
             </div>
+
+            <Separator />
+
+            {/* Custom Chart Configuration */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-lg">Gráficos Personalizados</h4>
+              <div className="space-y-3">
+                {customCharts.map(chart => (
+                  <div key={chart.id} className="p-4 border rounded-md space-y-4">
+                    <div className="flex items-center gap-4">
+                       <Input 
+                          placeholder="Nome do Gráfico"
+                          value={chart.name}
+                          onChange={(e) => handleCustomChartChange(chart.id, 'name', e.target.value)}
+                          className="flex-1 font-semibold"
+                        />
+                         <Select value={chart.type} onValueChange={(v) => handleCustomChartChange(chart.id, 'type', v)}>
+                            <SelectTrigger className="w-[150px]">
+                                <div className="flex items-center gap-2">
+                                    {chart.type === 'bar' ? <BarChart className="h-4 w-4" /> : <PieChart className="h-4 w-4" />}
+                                    <SelectValue/>
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="bar">Gráfico de Barras</SelectItem>
+                                <SelectItem value="pie">Gráfico de Pizza</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomChart(chart.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    {chart.type === 'bar' && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label>Eixo X (Categorias)</Label>
+                          <Select value={chart.xAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'xAxisField', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                         <div className="space-y-1">
+                          <Label>Eixo Y (Valores)</Label>
+                          <Select value={chart.yAxisField} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisField', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                         <div className="space-y-1">
+                          <Label>Agregação do Eixo Y</Label>
+                          <Select value={chart.yAxisAggregation} onValueChange={(v) => handleCustomChartChange(chart.id, 'yAxisAggregation', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="sum">Soma</SelectItem>
+                                <SelectItem value="average">Média</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {chart.type === 'pie' && (
+                      <div className="grid grid-cols-2 gap-2">
+                         <div className="space-y-1">
+                          <Label>Segmentar por</Label>
+                           <Select value={chart.segmentField} onValueChange={(v) => handleCustomChartChange(chart.id, 'segmentField', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{allCategoricalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Valor do Segmento</Label>
+                          <Select value={chart.valueField} onValueChange={(v) => handleCustomChartChange(chart.id, 'valueField', v)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="count">Contagem de Tarefas</SelectItem>
+                                {chartNumericalFields.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={handleAddCustomChart}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Gráfico Personalizado
+              </Button>
+            </div>
+
+
         </div>
 
         <DialogFooter className="mt-auto pt-4 border-t">

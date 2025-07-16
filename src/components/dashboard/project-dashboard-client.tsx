@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, CustomKpiDefinition } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -467,10 +467,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setCsvHeaders([]);
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = useCallback((value: number) => {
     if(!isClient) return 'R$ ...';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  }
+  }, [isClient]);
   
   const allKpis = useMemo(() => {
     const { tasks, configuration, plannedBudget, actualCost } = project;
@@ -530,7 +530,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       .map(([key, kpi]) => ({ id: key, ...kpi }));
 
     return [...visibleDefaultKpis, ...customKpisCalculated];
-  }, [project, isClient]);
+  }, [project, formatCurrency]);
 
   if (!isClient) {
     return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
@@ -628,6 +628,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
         projectConfiguration={project.configuration}
+        customFields={project.customFieldDefinitions || []}
         onSave={handleConfigUpdate}
       />
     </>
