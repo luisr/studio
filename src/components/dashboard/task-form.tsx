@@ -564,7 +564,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                           <FormItem>
                             <FormLabel>{def.name}</FormLabel>
                             <FormControl>
-                              <>
+                              <div>
                                 {def.type === 'text' && <Input {...field} value={field.value || ''} />}
                                 {def.type === 'number' && <Input type="number" {...field} value={field.value || ''} />}
                                 {def.type === 'date' && (
@@ -591,7 +591,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                                     </PopoverContent>
                                   </Popover>
                                 )}
-                              </>
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
