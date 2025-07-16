@@ -34,7 +34,7 @@ export function DashboardSidebar() {
     { href: "/dashboard/projects", label: "Projetos", icon: Folder },
     { href: "/dashboard/tasks", label: "Tarefas", icon: CheckSquare },
     { href: "/dashboard/reports", label: "Relatórios", icon: FileText },
-    { href: "#", label: "Usuários", icon: Users },
+    { href: "/dashboard/users", label: "Usuários", icon: Users },
   ];
 
   const totalProjects = projects.length;
