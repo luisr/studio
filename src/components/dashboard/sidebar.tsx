@@ -38,15 +38,15 @@ import Image from "next/image";
 const Logo = () => (
     <div className="flex items-center gap-3">
         <Image
-            src="https://placehold.co/100x100.png"
-            alt="Tô Sabendo! Logo"
-            width={40}
-            height={40}
+            src="https://placehold.co/150x80.png"
+            alt="Beach Park Logo"
+            width={80}
+            height={45}
             className="rounded-lg"
-            data-ai-hint="logo idea"
+            data-ai-hint="water park"
         />
          <div>
-            <h1 className="text-xl font-bold text-foreground">Tô Sabendo!</h1>
+            <h1 className="text-xl font-bold text-foreground">Beach Park</h1>
         </div>
     </div>
 );

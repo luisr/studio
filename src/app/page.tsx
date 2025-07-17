@@ -9,12 +9,12 @@ import Image from 'next/image';
 const Logo = () => (
     <div className="flex justify-center mb-4">
         <Image 
-            src="https://placehold.co/100x100.png"
-            alt="Tô Sabendo! Logo"
-            width={64}
+            src="https://placehold.co/150x80.png"
+            alt="Beach Park Logo"
+            width={120}
             height={64}
             className="rounded-lg"
-            data-ai-hint="logo idea"
+            data-ai-hint="water park"
         />
     </div>
 );
@@ -26,7 +26,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <Logo />
-          <CardTitle className="text-2xl font-bold">Tô Sabendo!</CardTitle>
+          <CardTitle className="text-2xl font-bold">Beach Park</CardTitle>
           <CardDescription>Bem-vindo de volta! Faça login para acessar seus projetos.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
