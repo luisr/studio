@@ -19,6 +19,7 @@ import { Input } from "../ui/input";
 export const TASK_FIELDS = {
     id: "ID da Tarefa",
     name: "Nome da Tarefa",
+    progress: "Progresso (%)",
     assignee: "Responsável (Nome ou ID)",
     status: "Status",
     priority: "Prioridade",

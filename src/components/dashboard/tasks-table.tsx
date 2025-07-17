@@ -21,6 +21,7 @@ import { TasksTableToolbar, TasksTableBulkActionsToolbar } from './tasks-table-t
 import { ViewActions } from './view-actions';
 import { Checkbox } from '../ui/checkbox';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Slider } from '../ui/slider';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -78,10 +79,11 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
     assignee: true,
     status: true,
     priority: true,
+    progress: true,
     plannedHours: true,
     plannedEndDate: true,
-    cpi: true,
-    spi: true,
+    cpi: false,
+    spi: false,
   };
 
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
@@ -175,6 +177,20 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
         taskAndSubtaskIds.forEach(id => newSelectedRows.delete(id));
     }
     setSelectedRows(newSelectedRows);
+  };
+  
+  const handleProgressChange = (taskId: string, newProgress: number[]) => {
+      if (!canEditTasks) return;
+      
+      const updatedTasks = project.tasks.map(task => {
+          if (task.id === taskId) {
+              const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
+              const status = newProgress[0] === 100 && completedStatus ? completedStatus.name : task.status;
+              return { ...task, progress: newProgress[0], status };
+          }
+          return task;
+      });
+      onTasksChange(updatedTasks);
   };
 
   const isAllSelected = selectedRows.size > 0 && selectedRows.size === getAllTaskIdsWithSubtasks(tasks).length;
@@ -278,6 +294,23 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
           {columnVisibility.priority && <TableCell>
             <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
           </TableCell>}
+          {columnVisibility.progress && (
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Slider
+                  value={[task.progress || 0]}
+                  onValueChange={(value) => handleProgressChange(task.id, value)}
+                  max={100}
+                  step={5}
+                  className="w-24"
+                  disabled={!canEditTasks}
+                />
+                <span className="text-xs text-muted-foreground w-8 text-right">
+                  {task.progress || 0}%
+                </span>
+              </div>
+            </TableCell>
+          )}
           {columnVisibility.plannedHours && <TableCell>
              <TooltipProvider>
                 <Tooltip>
@@ -366,12 +399,12 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Exibir/Ocultar Colunas</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {Object.keys(defaultColumns).map(key => (
+                    {Object.entries(defaultColumns).map(([key, value]) => (
                         <DropdownMenuCheckboxItem
                             key={key}
                             className="capitalize"
                             checked={columnVisibility[key]}
-                            onCheckedChange={value => setColumnVisibility(prev => ({ ...prev, [key]: !!value }))}
+                            onCheckedChange={checked => setColumnVisibility(prev => ({ ...prev, [key]: !!checked }))}
                         >
                             {key.replace(/([A-Z])/g, ' $1')}
                         </DropdownMenuCheckboxItem>
@@ -397,7 +430,7 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">
+                <TableHead className="w-[30%]">
                   <div className="flex items-center">
                     {canEditTasks && (
                       <Checkbox
@@ -412,6 +445,7 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
                 {columnVisibility.assignee && <TableHead>Responsável</TableHead>}
                 {columnVisibility.status && <TableHead>Status</TableHead>}
                 {columnVisibility.priority && <TableHead>Prioridade</TableHead>}
+                {columnVisibility.progress && <TableHead className="w-[150px]">Progresso</TableHead>}
                 {columnVisibility.plannedHours && <TableHead>Esforço Plan.</TableHead>}
                 {columnVisibility.plannedEndDate && <TableHead>Data Fim Plan.</TableHead>}
                 {columnVisibility.cpi && <TableHead>CPI</TableHead>}
@@ -427,7 +461,7 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
                 tasks.map(task => renderTask(task))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
+                  <TableCell colSpan={10 + (project.configuration.customFieldDefinitions?.length || 0)} className="h-24 text-center">
                     Nenhuma tarefa encontrada.
                   </TableCell>
                 </TableRow>

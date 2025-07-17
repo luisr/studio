@@ -107,6 +107,7 @@ export interface Task {
   name: string;
   assignee: User;
   status: string; // Changed from enum to string to allow custom statuses
+  progress: number; // Percentage from 0 to 100
   plannedStartDate: string;
   plannedEndDate: string;
   actualStartDate?: string;

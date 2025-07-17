@@ -52,19 +52,21 @@ const nestTasks = (tasks: Task[]): Task[] => {
     return rootTasks;
 };
 
-const calculateTotalProgress = (tasks: Task[], config: ProjectConfiguration): number => {
+const calculateTotalProgress = (tasks: Task[]): number => {
     if (!tasks || tasks.length === 0) return 0;
-    
+
     const rootTasks = nestTasks(tasks);
 
     const calculateWeightedProgress = (taskNode: Task): { progress: number, totalHours: number } => {
         const subTasks = (taskNode as any).subTasks;
+        
+        // Se a tarefa não tem subtarefas, o progresso dela é o valor direto do campo `progress`
         if (!subTasks || subTasks.length === 0) {
-            const completedStatus = config.statuses.find(s => s.isCompleted);
-            const progress = (completedStatus && taskNode.status === completedStatus.name) ? 100 : 0;
-            return { progress: progress * (taskNode.plannedHours || 1), totalHours: taskNode.plannedHours || 1 };
+            const weight = taskNode.plannedHours || 1;
+            return { progress: (taskNode.progress || 0) * weight, totalHours: weight };
         }
-
+        
+        // Se a tarefa tem subtarefas, o progresso dela é a média ponderada do progresso das subtarefas
         const subTasksResult = subTasks.reduce((acc: any, subTask: any) => {
             const result = calculateWeightedProgress(subTask);
             acc.progress += result.progress;
@@ -72,7 +74,12 @@ const calculateTotalProgress = (tasks: Task[], config: ProjectConfiguration): nu
             return acc;
         }, { progress: 0, totalHours: 0 });
         
-        return subTasksResult;
+        // Se o total de horas for 0, o progresso também é 0 para evitar divisão por zero.
+        if (subTasksResult.totalHours === 0) return { progress: 0, totalHours: 0 };
+        
+        // O progresso da tarefa pai é a média do progresso ponderado das filhas.
+        const parentProgress = subTasksResult.progress / subTasksResult.totalHours;
+        return { progress: parentProgress * subTasksResult.totalHours, totalHours: subTasksResult.totalHours };
     }
 
     let totalWeightedProgress = 0;
@@ -86,8 +93,10 @@ const calculateTotalProgress = (tasks: Task[], config: ProjectConfiguration): nu
   
     if (totalHours === 0) return 0;
 
+    // Retorna o progresso geral do projeto (0 a 100)
     return Math.round(totalWeightedProgress / totalHours);
 }
+
 
 const iconMap: Record<string, LucideIcon> = {
     BarChart, Clock, DollarSign, ListTodo, Target, AlertTriangle, CheckCircle
@@ -259,7 +268,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 const originalTask = t;
 
                 // Define which fields are critical for justification
-                const criticalFields: (keyof Task)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours'];
+                const criticalFields: (keyof Task)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours', 'progress'];
 
                 criticalFields.forEach(key => {
                      if (JSON.stringify(originalTask[key]) !== JSON.stringify(updatedTaskData[key])) {
@@ -307,8 +316,14 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 timestamp: new Date().toISOString(),
                 justification: 'Status alterado no quadro Kanban'
             }];
+            
+            let progress = task.progress;
+            const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
+            if(completedStatus && newStatus === completedStatus.name) {
+                progress = 100;
+            }
 
-            return { ...task, status: newStatus, changeHistory: newChangeHistory };
+            return { ...task, status: newStatus, progress, changeHistory: newChangeHistory };
         }
         return task;
     });
@@ -421,6 +436,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       return {
         id: task.id,
         name: task.name,
+        progress: task.progress,
         assignee_id: task.assignee.id,
         assignee_name: task.assignee.name,
         status: task.status,
@@ -546,6 +562,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                     const foundUser = usersByNameMap.get(String(value).toLowerCase()) || usersMap.get(String(value));
                     if (foundUser) task.assignee = foundUser;
                     break;
+                case 'progress':
+                    const progress = parseInt(value, 10);
+                    if (!isNaN(progress)) task.progress = progress;
+                    break;
                 case 'plannedStartDate':
                 case 'plannedEndDate':
                 case 'actualStartDate':
@@ -580,6 +600,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         if (!task.name) task.name = "Tarefa importada sem nome";
         if (!task.assignee) task.assignee = project.team[0].user;
         if (!task.status) task.status = project.configuration.statuses.find(s => s.isDefault)?.name || 'A Fazer';
+        if (task.progress === undefined) task.progress = 0;
         if (!task.plannedStartDate) task.plannedStartDate = new Date().toISOString();
         if (!task.plannedEndDate) task.plannedEndDate = new Date().toISOString();
         if (task.plannedHours === undefined) task.plannedHours = 0;
@@ -636,7 +657,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     // Default KPIs
     const completedStatus = configuration.statuses.find(s => s.isCompleted);
     const completedTasks = completedStatus ? tasks.filter(t => t.status === completedStatus.name).length : 0;
-    const overallProgress = calculateTotalProgress(tasks, configuration);
+    const overallProgress = calculateTotalProgress(tasks);
     const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
     const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
     const earnedValue = (overallProgress / 100) * totalPlannedHours;

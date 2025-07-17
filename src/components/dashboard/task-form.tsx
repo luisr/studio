@@ -46,6 +46,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "../ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Badge } from "../ui/badge";
+import { Slider } from "../ui/slider";
 
 type EffortUnit = 'hours' | 'days' | 'weeks' | 'months';
 
@@ -71,6 +72,7 @@ const taskSchema = z.object({
   assignee: z.string().min(1, { message: "Selecione um responsável." }),
   status: z.string().min(1, { message: "Selecione um status." }),
   priority: z.enum(["Baixa", "Média", "Alta"]),
+  progress: z.number().min(0).max(100),
   plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
   
@@ -136,6 +138,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
       assignee: "",
       status: configuration.statuses.find(s => s.isDefault)?.name || "",
       priority: "Média",
+      progress: 0,
       plannedEffort: 0,
       plannedEffortUnit: 'hours',
       actualEffort: 0,
@@ -165,6 +168,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           assignee: task.assignee.id,
           status: task.status,
           priority: task.priority || 'Média',
+          progress: task.progress || 0,
           plannedStartDate: new Date(task.plannedStartDate),
           plannedEndDate: new Date(task.plannedEndDate),
           plannedEffort: plannedEffortDisplay.value,
@@ -185,6 +189,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           assignee: "",
           status: configuration.statuses.find(s => s.isDefault)?.name || "",
           priority: 'Média',
+          progress: 0,
           plannedStartDate: new Date(),
           plannedEndDate: new Date(),
           plannedEffort: 0,
@@ -225,7 +230,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
  const onSubmit = (data: TaskFormValues) => {
     // If we're editing an existing task, check if critical fields have changed.
     if (task) {
-        const criticalFields: (keyof TaskFormValues)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours'];
+        const criticalFields: (keyof TaskFormValues)[] = ['name', 'status', 'priority', 'plannedStartDate', 'plannedEndDate', 'plannedHours', 'progress'];
         const hasCriticalChanges = criticalFields.some(field => {
             const formValue = JSON.stringify(data[field]);
             // Re-create the initial value from `task` for comparison
@@ -234,6 +239,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                 taskValue = JSON.stringify(new Date(task[field] as string));
             } else if (field === 'plannedHours') {
                  taskValue = JSON.stringify(task.plannedHours);
+            } else if(field === 'progress') {
+                taskValue = JSON.stringify(task.progress || 0);
             } else {
                  taskValue = JSON.stringify(task[field as keyof Task]);
             }
@@ -339,6 +346,9 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
           } catch {
               return value;
           }
+      }
+      if(field === 'progress'){
+          return `${value}%`;
       }
       return value;
   };
@@ -469,6 +479,24 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="progress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Progresso ({field.value}%)</FormLabel>
+                    <FormControl>
+                      <Slider
+                        value={[field.value]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        max={100}
+                        step={5}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
