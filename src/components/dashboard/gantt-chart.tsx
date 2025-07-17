@@ -1,7 +1,7 @@
 // src/components/dashboard/gantt-chart.tsx
 "use client"
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import type { Project, Task } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { eachDayOfInterval, format, differenceInDays, startOfDay, addDays, getWeek, getMonth, getYear, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
@@ -9,7 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
-import { Save, Trash2 } from 'lucide-react';
+import { Save, Trash2, ArrowRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { ViewActions } from './view-actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -53,10 +53,47 @@ const flattenNestedTasks = (tasks: Task[], level = 0): (Task & { level: number }
   return allTasks;
 };
 
+const getTaskBarCoords = (
+    task: Task, 
+    taskIndex: number, 
+    overallStartDate: Date, 
+    zoom: ZoomLevel
+): { start: number, end: number, y: number, height: number } | null => {
+  
+  const taskStart = startOfDay(new Date(task.plannedStartDate));
+  const taskEnd = startOfDay(new Date(task.plannedEndDate));
+
+  if (!isFinite(taskStart.getTime()) || !isFinite(taskEnd.getTime())) return null;
+
+  let barStart = 0;
+  let barEnd = 0;
+  
+  if (zoom === 'day') {
+      barStart = differenceInDays(taskStart, overallStartDate);
+      barEnd = differenceInDays(taskEnd, overallStartDate) + 1;
+  } else if (zoom === 'week') {
+      barStart = differenceInDays(startOfWeek(taskStart, { weekStartsOn: 1 }), startOfWeek(overallStartDate, { weekStartsOn: 1 })) / 7;
+      barEnd = (differenceInDays(endOfWeek(taskEnd, {weekStartsOn:1}), startOfWeek(overallStartDate, { weekStartsOn: 1 })) + 1) / 7;
+  } else { // month
+      barStart = (getYear(taskStart) - getYear(overallStartDate)) * 12 + getMonth(taskStart) - getMonth(overallStartDate);
+      const endMonthIndex = (getYear(taskEnd) - getYear(overallStartDate)) * 12 + getMonth(taskEnd) - getMonth(overallStartDate);
+      barEnd = endMonthIndex + 1;
+  }
+  
+  const rowHeight = 40; // Corresponds to h-10 in Tailwind
+  const headerHeight = 80; // row-span-2 of 40px each
+  const y = headerHeight + (taskIndex * rowHeight) + (rowHeight / 2);
+
+  return { start: barStart, end: barEnd, y, height: rowHeight };
+};
+
 
 export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
   const printableRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<ZoomLevel>('day');
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+
 
   const statusColorMap = useMemo(() => {
     return project.configuration.statuses.reduce((acc, status) => {
@@ -65,13 +102,14 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
     }, {} as Record<string, string>);
   }, [project.configuration.statuses]);
   
-  const { tasks, overallStartDate, overallEndDate } = useMemo(() => {
+  const { tasks, taskMap, overallStartDate, overallEndDate } = useMemo(() => {
     const nested = nestTasks(project.tasks);
     const flattened = flattenNestedTasks(nested);
+    const map = new Map<string, Task & { level: number }>(flattened.map(t => [t.id, t]));
     
     if (flattened.length === 0) {
       const now = new Date();
-      return { tasks: [], overallStartDate: now, overallEndDate: addDays(now, 30) };
+      return { tasks: [], taskMap: map, overallStartDate: now, overallEndDate: addDays(now, 30) };
     }
 
     const allDates = flattened.flatMap(t => [
@@ -86,11 +124,12 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
 
     return { 
       tasks: flattened, 
+      taskMap: map,
       overallStartDate: startOfDay(minDate), 
       overallEndDate: startOfDay(maxDate),
     };
   }, [project.tasks, project.baselineSavedAt]);
-
+  
   const timeHeader = useMemo(() => {
     const start = overallStartDate;
     const end = overallEndDate;
@@ -150,6 +189,17 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
   
   const cellWidth = zoom === 'day' ? 40 : zoom === 'week' ? 60 : 100;
   const totalColumns = timeHeader.bottom.length;
+  const tasklistWidth = 300;
+  const gridWidth = totalColumns * cellWidth;
+
+  useEffect(() => {
+    if (gridContainerRef.current) {
+        setContainerDimensions({
+            width: gridContainerRef.current.scrollWidth,
+            height: gridContainerRef.current.scrollHeight
+        });
+    }
+  }, [tasks, zoom]); // Recalculate on zoom or task changes
   
   if (totalColumns === 0) {
     return (
@@ -220,11 +270,11 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto printable" ref={printableRef}>
-        <div className="relative inline-block min-w-full text-sm printable-content">
+        <div className="relative inline-block min-w-full text-sm printable-content" ref={gridContainerRef}>
             <div 
               className="grid"
               style={{
-                  gridTemplateColumns: `minmax(300px, 1fr) repeat(${totalColumns}, minmax(${cellWidth}px, 1fr))`,
+                  gridTemplateColumns: `minmax(${tasklistWidth}px, 1fr) repeat(${totalColumns}, minmax(${cellWidth}px, 1fr))`,
                   gridAutoRows: 'min-content 40px'
               }}
             >
@@ -248,8 +298,8 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
             
                 {/* Linha do "Hoje" */}
                 {todayIndex >= 0 && todayIndex < totalColumns && (
-                  <div className="absolute top-0 bottom-0 row-span-full border-l-2 border-red-500 z-20" style={{ left: `calc(300px + ${todayIndex * cellWidth}px)`, width: `${cellWidth}px`}}>
-                      <div className="sticky top-0 -ml-4 text-xs font-bold text-red-500 bg-background px-1 rounded whitespace-nowrap">Hoje</div>
+                  <div className="absolute top-0 bottom-0 row-span-full border-l-2 border-red-500 z-20" style={{ left: `${tasklistWidth + todayIndex * cellWidth}px`}}>
+                      <div className="sticky top-0 ml-1 text-xs font-bold text-red-500 bg-background px-1 rounded whitespace-nowrap">Hoje</div>
                   </div>
                 )}
                 
@@ -331,8 +381,8 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                               <div
                                   className="absolute h-2 rounded-full bg-muted-foreground/50 z-10 bottom-1"
                                   style={{
-                                      left: `calc(${baselineBarStart / totalColumns * 100}% + 2px)`,
-                                      width: `calc(${baselineBarDuration / totalColumns * 100}% - 4px)`
+                                      left: `${baselineBarStart * cellWidth}px`,
+                                      width: `${baselineBarDuration * cellWidth - 4}px`
                                   }}
                               ></div>
                           )}
@@ -348,8 +398,8 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                                   )}
                                   style={{
                                       backgroundColor: statusColorMap[task.status] || '#808080',
-                                      left: `calc(${barStart / totalColumns * 100}% + 2px)`,
-                                      width: `calc(${barDuration / totalColumns * 100}% - 4px)`
+                                      left: `${barStart * cellWidth + 2}px`,
+                                      width: `${barDuration * cellWidth - 4}px`
                                   }}
                                 >
                                 </div>
@@ -376,6 +426,66 @@ export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttC
                   );
                 })}
             </div>
+
+            {/* Dependency Lines Overlay */}
+            <svg
+                width={containerDimensions.width}
+                height={containerDimensions.height}
+                className="absolute top-0 left-0 pointer-events-none z-20"
+            >
+                <defs>
+                    <marker
+                        id="arrowhead"
+                        markerWidth="10"
+                        markerHeight="7"
+                        refX="0"
+                        refY="3.5"
+                        orient="auto"
+                    >
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                    </marker>
+                </defs>
+                {tasks.map((task, toIndex) => {
+                    if (!task.dependencies || task.dependencies.length === 0) {
+                        return null;
+                    }
+                    return task.dependencies.map(depId => {
+                        const fromTask = taskMap.get(depId);
+                        const fromIndex = fromTask ? tasks.findIndex(t => t.id === depId) : -1;
+
+                        if (!fromTask || fromIndex === -1) {
+                            return null;
+                        }
+
+                        const fromCoords = getTaskBarCoords(fromTask, fromIndex, overallStartDate, zoom);
+                        const toCoords = getTaskBarCoords(task, toIndex, overallStartDate, zoom);
+
+                        if (!fromCoords || !toCoords) {
+                            return null;
+                        }
+
+                        const x1 = tasklistWidth + fromCoords.end * cellWidth;
+                        const y1 = fromCoords.y;
+                        const x2 = tasklistWidth + toCoords.start * cellWidth;
+                        const y2 = toCoords.y;
+
+                        const path = y1 === y2
+                          ? `M ${x1} ${y1} L ${x2-10} ${y2}`
+                          : `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${y2} L ${x2-10} ${y2}`;
+
+                        return (
+                            <path
+                                key={`${fromTask.id}-${task.id}`}
+                                d={path}
+                                stroke="#64748b"
+                                strokeWidth="1.5"
+                                fill="none"
+                                markerEnd="url(#arrowhead)"
+                            />
+                        );
+                    });
+                })}
+            </svg>
         </div>
       </CardContent>
     </Card>
