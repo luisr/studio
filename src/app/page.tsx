@@ -10,11 +10,11 @@ const Logo = () => (
     <div className="flex justify-center mb-4">
         <Image 
             src="https://placehold.co/150x80.png"
-            alt="Beach Park Logo"
+            alt="Tô de Olho! Logo"
             width={120}
             height={64}
             className="rounded-lg"
-            data-ai-hint="water park"
+            data-ai-hint="company logo"
         />
     </div>
 );
@@ -26,7 +26,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <Logo />
-          <CardTitle className="text-2xl font-bold">Beach Park</CardTitle>
+          <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
           <CardDescription>Bem-vindo de volta! Faça login para acessar seus projetos.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

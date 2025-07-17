@@ -39,14 +39,14 @@ const Logo = () => (
     <div className="flex items-center gap-3">
         <Image
             src="https://placehold.co/150x80.png"
-            alt="Beach Park Logo"
+            alt="Tô de Olho! Logo"
             width={80}
             height={45}
             className="rounded-lg"
-            data-ai-hint="water park"
+            data-ai-hint="company logo"
         />
          <div>
-            <h1 className="text-xl font-bold text-foreground">Beach Park</h1>
+            <h1 className="text-xl font-bold text-foreground">Tô de Olho!</h1>
         </div>
     </div>
 );

@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Beach Park',
+  title: 'Tô de Olho!',
   description: 'Gerenciamento de Projetos com Inteligência Preditiva e Transparência',
 };
 
