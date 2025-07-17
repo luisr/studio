@@ -12,18 +12,11 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { getUsers } from '@/lib/firebase/service';
 import type { User } from '@/lib/types';
+import { BrainCircuit } from 'lucide-react';
 
 const Logo = () => (
-    <div className="flex justify-center mb-4">
-        <Image 
-            src="https://i.imgur.com/u1w5G2j.png"
-            alt="Tô de Olho! Logo"
-            width={150}
-            height={84}
-            className="rounded-lg"
-            data-ai-hint="company logo"
-            priority
-        />
+    <div className="flex justify-center items-center mb-4 text-primary">
+        <BrainCircuit className="h-16 w-16" />
     </div>
 );
 

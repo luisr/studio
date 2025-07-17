@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Shield,
   LayoutDashboard,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -34,19 +35,12 @@ import {
 } from "@/components/ui/collapsible";
 import { useState } from "react";
 import { ScrollArea } from "../ui/scroll-area";
-import Image from "next/image";
 
 
 const Logo = () => (
-    <div className="flex items-center gap-3">
-        <Image
-            src="https://i.imgur.com/u1w5G2j.png"
-            alt="Tô de Olho! Logo"
-            width={120}
-            height={67}
-            className="rounded-lg"
-            data-ai-hint="company logo"
-        />
+    <div className="flex items-center justify-center gap-2 text-primary">
+        <BrainCircuit className="h-8 w-8" />
+        <span className="text-xl font-bold tracking-tight">Tô de Olho!</span>
     </div>
 );
 
@@ -79,7 +73,7 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col justify-between">
       <div className="flex flex-col gap-4 overflow-hidden">
-        <Link href="/dashboard" className="pb-2 px-2 border-b flex justify-center">
+        <Link href="/dashboard" className="pb-4 px-2 border-b flex justify-center">
            <Logo />
         </Link>
 
