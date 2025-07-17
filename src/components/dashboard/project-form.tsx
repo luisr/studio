@@ -245,7 +245,7 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Salvar Alterações</Button>
+              <Button type="submit">Salvar Projeto</Button>
             </DialogFooter>
           </form>
         </Form>

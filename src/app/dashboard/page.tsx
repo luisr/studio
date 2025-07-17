@@ -73,7 +73,11 @@ export default function DashboardProjectsPage() {
     }
 
     const newProject: Omit<Project, 'id'> = {
-      ...projectData,
+      name: projectData.name,
+      description: projectData.description,
+      plannedStartDate: projectData.plannedStartDate, // Already a string
+      plannedEndDate: projectData.plannedEndDate, // Already a string
+      plannedBudget: projectData.plannedBudget,
       manager: manager,
       actualCost: 0,
       tasks: [],
