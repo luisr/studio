@@ -12,8 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { PlusCircle, Loader2, BrainCircuit } from 'lucide-react';
 import { summarizeAllProjects, type SummarizeAllProjectsOutput } from '@/ai/flows/summarize-all-projects';
-import { getProjects, getUsers } from '@/lib/firebase/service'; // Import from service
+import { getProjects, getUsers, createProject } from '@/lib/firebase/service';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+
 
 const calculateProgress = (project: Project): number => {
     if (project.tasks.length === 0) return 0;
@@ -31,44 +33,61 @@ export default function DashboardProjectsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { toast } = useToast();
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const [fetchedProjects, fetchedUsers] = await Promise.all([
+        getProjects(),
+        getUsers()
+      ]);
+      setProjects(fetchedProjects);
+      setUsers(fetchedUsers);
+      // Em um app real, este seria o usuário autenticado.
+      const adminUser = fetchedUsers.find(u => u.role === 'Admin');
+      setCurrentUser(adminUser || null);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível buscar os projetos e usuários do sistema.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const [fetchedProjects, fetchedUsers] = await Promise.all([
-          getProjects(),
-          getUsers()
-        ]);
-        setProjects(fetchedProjects);
-        setUsers(fetchedUsers);
-        // Em um app real, este seria o usuário autenticado.
-        const adminUser = fetchedUsers.find(u => u.role === 'Admin');
-        setCurrentUser(adminUser || null);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-        // Handle error appropriately
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+    fetchAllData();
+  }, [toast]);
 
-  const handleCreateProject = (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration'>) => {
-    // This would now be an API call to create a project in Firestore
-    console.log("Creating project (API call needed):", projectData);
-    // For now, we'll just add it to the local state to see the effect
-    const newProject: Project = {
+  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks'>) => {
+    const newProject: Omit<Project, 'id'> = {
       ...projectData,
-      id: `proj-${Date.now()}`,
       actualCost: 0,
       tasks: [],
       kpis: {},
       configuration: defaultConfiguration,
     };
-    setProjects(prev => [newProject, ...prev]);
-    setIsFormOpen(false);
+    try {
+       await createProject(newProject);
+       toast({
+         title: "Projeto Criado!",
+         description: `O projeto "${projectData.name}" foi criado com sucesso.`
+       });
+       // Refresh the list of projects
+       await fetchAllData();
+       setIsFormOpen(false);
+    } catch (error) {
+       console.error("Failed to create project:", error);
+       toast({
+         title: "Erro ao Criar Projeto",
+         description: "Ocorreu um erro ao salvar o novo projeto. Tente novamente.",
+         variant: "destructive"
+       });
+    }
   };
   
   const handleGenerateConsolidatedAnalysis = async () => {

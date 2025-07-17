@@ -1,6 +1,6 @@
 // src/lib/firebase/service.ts
 import { db } from './config';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc } from 'firebase/firestore';
 import type { Project, User } from '@/lib/types';
 
 export async function getProjects(): Promise<Project[]> {
@@ -24,6 +24,11 @@ export async function getProject(id: string): Promise<Project | undefined> {
                 ...task,
                 plannedStartDate: new Date(task.plannedStartDate).toISOString(),
                 plannedEndDate: new Date(task.plannedEndDate).toISOString(),
+                 // Ensure nested properties are handled correctly if they are Firestore Timestamps
+                actualStartDate: task.actualStartDate ? new Date(task.actualStartDate).toISOString() : undefined,
+                actualEndDate: task.actualEndDate ? new Date(task.actualEndDate).toISOString() : undefined,
+                baselineStartDate: task.baselineStartDate ? new Date(task.baselineStartDate).toISOString() : undefined,
+                baselineEndDate: task.baselineEndDate ? new Date(task.baselineEndDate).toISOString() : undefined,
             }));
         }
         
@@ -42,12 +47,13 @@ export async function getUsers(): Promise<User[]> {
   return userList;
 }
 
-// In a real application, you'd add functions to create, update, and delete data as well.
-// For example:
-/*
 export async function createProject(projectData: Omit<Project, 'id'>): Promise<string> {
   const projectsCol = collection(db, 'projects');
   const docRef = await addDoc(projectsCol, projectData);
   return docRef.id;
 }
-*/
+
+export async function updateProject(projectId: string, data: Partial<Project>): Promise<void> {
+    const projectDocRef = doc(db, 'projects', projectId);
+    await updateDoc(projectDocRef, data);
+}

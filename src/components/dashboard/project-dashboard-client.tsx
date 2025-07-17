@@ -26,7 +26,7 @@ import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
 import { CalendarView } from "./calendar-view";
 import { ProjectForm } from "./project-form";
-import { getUsers } from "@/lib/firebase/service";
+import { getUsers, updateProject } from "@/lib/firebase/service";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -150,36 +150,54 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     setProject(initialProject);
   }, [initialProject]);
 
+  const updateProjectAndPersist = useCallback(async (updatedProject: Project) => {
+    setProject(updatedProject);
+    try {
+      // Omit `id` because we don't want to change it.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, ...dataToSave } = updatedProject;
+      await updateProject(updatedProject.id, dataToSave);
+      toast({
+        title: 'Projeto Atualizado',
+        description: 'Suas alterações foram salvas no banco de dados.',
+      });
+    } catch (error) {
+      console.error("Failed to save project:", error);
+      toast({
+        title: 'Erro ao Salvar',
+        description: 'Não foi possível salvar as alterações no banco de dados. Suas mudanças locais foram mantidas.',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+
   const handleTaskUpdate = useCallback((updatedTasks: Task[]) => {
-     const newActualCost = updatedTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0);
-    setProject(prevProject => ({ 
-      ...prevProject, 
+    const newActualCost = updatedTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0);
+    const updatedProject = {
+      ...project,
       tasks: updatedTasks,
       actualCost: newActualCost,
-    }));
-  }, []);
+    };
+    updateProjectAndPersist(updatedProject);
+  }, [project, updateProjectAndPersist]);
 
   const handleProjectUpdate = (updatedProjectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks'>) => {
-    setProject(prev => ({
-        ...prev,
+     const updatedProject = {
+        ...project,
         ...updatedProjectData,
-    }));
-    toast({
-        title: "Projeto Atualizado",
-        description: "Os detalhes do projeto foram salvos com sucesso.",
-    });
+    };
+    updateProjectAndPersist(updatedProject);
     setIsProjectFormOpen(false);
   }
   
   const handleConfigUpdate = (newConfig: ProjectConfiguration) => {
-    setProject(prevProject => ({
-      ...prevProject,
+    const updatedProject = {
+      ...project,
       configuration: newConfig
-    }));
-     toast({
-        title: "Configurações Salvas",
-        description: "As configurações do projeto foram atualizadas.",
-    });
+    };
+    updateProjectAndPersist(updatedProject);
+    setIsSettingsOpen(false);
   };
 
    const handleSaveBaseline = () => {
@@ -188,15 +206,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       baselineStartDate: task.plannedStartDate,
       baselineEndDate: task.plannedEndDate,
     }));
-    setProject({
+    const updatedProject = {
       ...project,
       tasks: tasksWithBaseline,
       baselineSavedAt: new Date().toISOString(),
-    });
-    toast({
-        title: "Linha de Base Salva",
-        description: "A linha de base do projeto foi salva com sucesso.",
-    });
+    };
+    updateProjectAndPersist(updatedProject);
   };
 
   const handleDeleteBaseline = () => {
@@ -207,15 +222,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { baselineSavedAt, ...restProject } = project;
-    setProject({
+    const updatedProject = {
       ...restProject,
       tasks: tasksWithoutBaseline,
-    });
-     toast({
-        title: "Linha de Base Excluída",
-        description: "A linha de base do projeto foi removida.",
-        variant: "destructive"
-    });
+    };
+    updateProjectAndPersist(updatedProject as Project);
   };
   
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>, justification: string) => {
@@ -283,29 +294,28 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleTaskStatusChange = useCallback((taskId: string, newStatus: string) => {
-    setProject(prevProject => {
-        const updatedTasks = prevProject.tasks.map(task => {
-            if (task.id === taskId) {
-                const oldStatus = task.status;
-                if (oldStatus === newStatus) return task;
+    const updatedTasks = project.tasks.map(task => {
+        if (task.id === taskId) {
+            const oldStatus = task.status;
+            if (oldStatus === newStatus) return task;
 
-                const newChangeHistory = [...(task.changeHistory || []), {
-                    fieldChanged: 'status',
-                    oldValue: oldStatus,
-                    newValue: newStatus,
-                    user: currentUser?.name || 'Sistema',
-                    timestamp: new Date().toISOString(),
-                    justification: 'Status alterado no quadro Kanban'
-                }];
+            const newChangeHistory = [...(task.changeHistory || []), {
+                fieldChanged: 'status',
+                oldValue: oldStatus,
+                newValue: newStatus,
+                user: currentUser?.name || 'Sistema',
+                timestamp: new Date().toISOString(),
+                justification: 'Status alterado no quadro Kanban'
+            }];
 
-                return { ...task, status: newStatus, changeHistory: newChangeHistory };
-            }
-            return task;
-        });
-
-        return { ...prevProject, tasks: updatedTasks };
+            return { ...task, status: newStatus, changeHistory: newChangeHistory };
+        }
+        return task;
     });
-  }, [currentUser]);
+
+    const updatedProject = { ...project, tasks: updatedTasks };
+    updateProjectAndPersist(updatedProject);
+  }, [currentUser, project, updateProjectAndPersist]);
   
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
@@ -581,18 +591,18 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     }).filter(t => t.name !== "Tarefa importada sem nome"); // Filter out potentially empty rows
 
     const allTasks = [...project.tasks, ...newTasks];
+    const newConfig = { ...project.configuration, customFieldDefinitions: newCustomFieldDefs };
     
-    // Update the state once with all new data
-    setProject(prev => {
-      const newActualCost = allTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0); // Assuming a fixed rate for simplicity
-      return { 
-        ...prev, 
-        tasks: allTasks,
-        configuration: { ...prev.configuration, customFieldDefinitions: newCustomFieldDefs },
-        actualCost: newActualCost 
-      };
-    });
+    const newActualCost = allTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0);
+    const updatedProject = {
+      ...project,
+      tasks: allTasks,
+      configuration: newConfig,
+      actualCost: newActualCost
+    }
 
+    updateProjectAndPersist(updatedProject);
+    
     toast({
         title: "Importação Concluída",
         description: `${newTasks.length} tarefas foram importadas com sucesso.`,
@@ -604,10 +614,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleCriticalPathAnalyzed = (criticalPathIds: string[]) => {
-    setProject(prevProject => ({
-      ...prevProject,
-      criticalPath: criticalPathIds,
-    }));
+    const updatedProject = {
+        ...project,
+        criticalPath: criticalPathIds,
+    };
+    updateProjectAndPersist(updatedProject);
     toast({
       title: 'Caminho Crítico Analisado',
       description: 'As tarefas críticas foram destacadas no Gráfico de Gantt.',
