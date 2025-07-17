@@ -16,24 +16,33 @@ export function ViewActions({ contentRef }: ViewActionsProps) {
   const handlePrint = () => {
     const printableElement = contentRef.current;
     if (printableElement) {
-      // Temporariamente adiciona uma classe ao body para impressão
-      document.body.classList.add('printing');
-      
-      // Armazena o conteúdo original para restaurar depois
-      const originalContents = document.body.innerHTML;
-      const printContents = printableElement.innerHTML;
-      
-      // Substitui o corpo do documento pelo conteúdo imprimível
-      document.body.innerHTML = printContents;
-      
-      window.print();
-      
-      // Restaura o conteúdo original do corpo
-      document.body.innerHTML = originalContents;
-      // Remove a classe de impressão
-      document.body.classList.remove('printing');
-       // Recarrega o estado do react, se necessário (um simples reload pode ser mais fácil em alguns casos)
-      window.location.reload();
+        // Find the specific printable content inside the ref
+        const printableContent = printableElement.querySelector('.printable-content');
+        if (!printableContent) {
+            console.error("Printable content not found.");
+            return;
+        }
+
+        const originalContents = document.body.innerHTML;
+        const printContents = printableContent.innerHTML;
+
+        // Temporarily hide the original body content
+        Array.from(document.body.children).forEach(child => {
+            (child as HTMLElement).style.display = 'none';
+        });
+
+        // Create a temporary container for printing
+        const printContainer = document.createElement('div');
+        printContainer.innerHTML = printContents;
+        document.body.appendChild(printContainer);
+
+        window.print();
+
+        // Restore the original body
+        document.body.removeChild(printContainer);
+        Array.from(document.body.children).forEach(child => {
+            (child as HTMLElement).style.display = '';
+        });
     }
   };
 

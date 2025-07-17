@@ -72,6 +72,7 @@
 @layer utilities {
   .printable {
     background-color: white;
+    color: black;
     padding: 1rem;
     border-radius: 0.5rem;
   }
@@ -92,27 +93,35 @@
 
 
 @media print {
-  body.printing * {
-    visibility: hidden;
+  body {
+    background-color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
-  body.printing .printable-content, body.printing .printable-content * {
+  .printable-content, .printable-content * {
      visibility: visible;
   }
 
-  body.printing .printable-content {
+  .printable-content {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    padding: 1rem;
   }
 
-  .no-print {
+  .no-print, .no-print * {
     display: none !important;
+    visibility: hidden;
   }
   
-   @page {
+  @page {
     size: A4 landscape;
     margin: 1cm;
   }
+}
+
+body.printing .printable-container {
+  display: none;
 }
