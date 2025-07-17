@@ -97,7 +97,7 @@ export function CalendarView({ project, onEditTask }: CalendarViewProps) {
               className="p-0"
               locale={ptBR}
               modifiers={{ taskDays: taskDays.map(d => new Date(d + 'T00:00:00')) }}
-              modifiersClassNames={{ taskDays: 'bg-primary/10' }}
+              modifiersClassNames={{ taskDays: 'bg-accent/50' }}
               components={{
                   DayContent: (props) => (
                     <>
