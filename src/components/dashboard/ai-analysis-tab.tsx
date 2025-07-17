@@ -11,11 +11,7 @@ import { generateLessonsLearned } from "@/ai/flows/generate-lessons-learned";
 import { analyzeCriticalPath } from "@/ai/flows/analyze-critical-path";
 import { Loader2, Sparkles, AlertTriangle, GraduationCap, Network } from "lucide-react";
 import { ViewActions } from "./view-actions";
-
-interface AiAnalysisTabProps {
-  project: Project;
-  onCriticalPathAnalyzed: (criticalPathIds: string[]) => void;
-}
+import { Separator } from "../ui/separator";
 
 const LoadingState = () => (
     <div className="flex items-center justify-center p-8">
@@ -24,9 +20,24 @@ const LoadingState = () => (
     </div>
 );
 
+// Componente para formatar a resposta da IA
+const FormattedResponse = ({ text }: { text: string }) => {
+    const items = text.split('\n').filter(line => line.trim() !== '');
+    if (items.length <= 1) {
+        return <p>{text}</p>;
+    }
+    return (
+        <ul className="list-disc space-y-2 pl-5">
+            {items.map((item, index) => (
+                <li key={index} className="pl-2">{item.replace(/^- /, '')}</li>
+            ))}
+        </ul>
+    );
+};
+
 const ResultDisplay = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
-        <h4 className="font-semibold text-foreground">{title}</h4>
+    <div className="prose prose-sm max-w-none dark:prose-invert rounded-lg border bg-muted/20 p-4">
+        <h4 className="mt-0 font-semibold text-foreground">{title}</h4>
         {children}
     </div>
 );
@@ -121,8 +132,8 @@ export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTab
         </div>
         <ViewActions contentRef={printableRef} />
       </CardHeader>
-      <CardContent className="space-y-8 printable" ref={printableRef}>
-        <div className="printable-content">
+      <CardContent className="space-y-6 printable" ref={printableRef}>
+        <div className="printable-content space-y-6">
           {error && <p className="text-destructive text-sm text-center">{error}</p>}
 
           {/* Resumo do Status */}
@@ -141,12 +152,18 @@ export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTab
                   </Button>
               </div>
             {loading === "summary" ? <LoadingState /> : results.summary && (
-              <ResultDisplay title="Resumo da IA">
-                  <p><strong>Sumário:</strong> {results.summary.summary}</p>
-                  <p><strong>Recomendações:</strong> {results.summary.recommendations}</p>
-              </ResultDisplay>
+              <div className="space-y-4">
+                  <ResultDisplay title="Sumário da IA">
+                      <FormattedResponse text={results.summary.summary} />
+                  </ResultDisplay>
+                  <ResultDisplay title="Recomendações da IA">
+                      <FormattedResponse text={results.summary.recommendations} />
+                  </ResultDisplay>
+              </div>
             )}
           </div>
+          
+          <Separator className="my-4 no-print" />
 
           {/* Previsão de Riscos */}
            <div className="space-y-4">
@@ -164,13 +181,19 @@ export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTab
                   </Button>
               </div>
             {loading === "risks" ? <LoadingState /> : results.risks && (
-               <ResultDisplay title="Riscos Previstos e Mitigação">
-                  <p><strong>Riscos:</strong> {results.risks.risks}</p>
-                  <p><strong>Estratégias de Mitigação:</strong> {results.risks.mitigationStrategies}</p>
-              </ResultDisplay>
+               <div className="space-y-4">
+                  <ResultDisplay title="Riscos Potenciais">
+                      <FormattedResponse text={results.risks.risks} />
+                  </ResultDisplay>
+                  <ResultDisplay title="Estratégias de Mitigação">
+                      <FormattedResponse text={results.risks.mitigationStrategies} />
+                  </ResultDisplay>
+               </div>
             )}
           </div>
           
+           <Separator className="my-4 no-print" />
+
           {/* Lições Aprendidas */}
           <div className="space-y-4">
               <div className="flex items-center gap-4 no-print">
@@ -188,11 +211,13 @@ export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTab
               </div>
             {loading === "lessons" ? <LoadingState /> : results.lessons && (
                <ResultDisplay title="Relatório de Lições Aprendidas">
-                  <p>{results.lessons.lessonsLearned}</p>
+                  <FormattedResponse text={results.lessons.lessonsLearned} />
               </ResultDisplay>
             )}
           </div>
           
+           <Separator className="my-4 no-print" />
+
            {/* Análise de Caminho Crítico */}
           <div className="space-y-4">
               <div className="flex items-center gap-4 no-print">
@@ -210,13 +235,20 @@ export function AiAnalysisTab({ project, onCriticalPathAnalyzed }: AiAnalysisTab
               </div>
             {loading === "criticalPath" ? <LoadingState /> : results.criticalPath && (
                <ResultDisplay title="Análise de Caminho Crítico da IA">
-                  <p><strong>Explicação:</strong> {results.criticalPath.explanation}</p>
-                  <p><strong>Caminho Crítico (sequência de tarefas):</strong></p>
-                  <ol className="list-decimal list-inside">
-                    {results.criticalPath.criticalPath.map((taskId: string) => (
-                      <li key={taskId}>{getTaskName(taskId)}</li>
-                    ))}
-                  </ol>
+                    <div className="space-y-3">
+                        <div>
+                            <h5 className="font-semibold">Explicação</h5>
+                            <p>{results.criticalPath.explanation}</p>
+                        </div>
+                        <div>
+                            <h5 className="font-semibold">Caminho Crítico (Sequência de Tarefas)</h5>
+                            <ol className="list-decimal list-inside space-y-1 mt-2">
+                                {results.criticalPath.criticalPath.map((taskId: string) => (
+                                <li key={taskId}>{getTaskName(taskId)}</li>
+                                ))}
+                            </ol>
+                        </div>
+                    </div>
               </ResultDisplay>
             )}
           </div>
