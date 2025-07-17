@@ -84,11 +84,11 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
   }, [project, isOpen, form]);
   
   const onSubmit = (data: ProjectFormValues) => {
-    const manager = users.find(u => u.id === data.managerId);
-    if (!manager) return;
-    
     // For editing, we pass only the updated fields
     if (project) {
+        const manager = users.find(u => u.id === data.managerId);
+        if (!manager) return;
+
         const payload = {
             name: data.name,
             description: data.description || "",
@@ -99,11 +99,11 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
         };
         onSave(payload);
     } else {
-        // For creating, we just pass the core data
+        // For creating, we pass the managerId to be resolved by the parent
         const payload = {
             name: data.name,
             description: data.description || "",
-            manager: manager,
+            managerId: data.managerId,
             plannedStartDate: data.plannedStartDate.toISOString(),
             plannedEndDate: data.plannedEndDate.toISOString(),
             plannedBudget: data.plannedBudget,

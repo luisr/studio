@@ -65,14 +65,21 @@ export default function DashboardProjectsPage() {
     fetchAllData();
   }, [toast]);
 
-  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team'> & { manager: User }) => {
+  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team' | 'manager'> & { managerId: string }) => {
+    const manager = users.find(u => u.id === projectData.managerId);
+    if (!manager) {
+        toast({ title: "Gerente não encontrado", variant: "destructive" });
+        return;
+    }
+
     const newProject: Omit<Project, 'id'> = {
       ...projectData,
+      manager: manager,
       actualCost: 0,
       tasks: [],
       kpis: {},
       configuration: defaultConfiguration,
-      team: [{ user: projectData.manager, role: 'Manager' }], // Manager is the first team member
+      team: [{ user: manager, role: 'Manager' }], // Manager is the first team member
     };
     try {
        await createProject(newProject);
