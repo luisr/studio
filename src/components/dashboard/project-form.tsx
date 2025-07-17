@@ -84,22 +84,28 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
   }, [project, isOpen, form]);
   
   const onSubmit = (data: ProjectFormValues) => {
-    const payload = {
-      name: data.name,
-      description: data.description || "",
-      plannedStartDate: data.plannedStartDate.toISOString(),
-      plannedEndDate: data.plannedEndDate.toISOString(),
-      plannedBudget: data.plannedBudget,
-      managerId: data.managerId
-    };
-
     if (project) { // Edit mode
         const manager = users.find(u => u.id === data.managerId);
         if (!manager) return;
 
-        const { managerId, ...rest } = payload;
-        onSave({ ...rest, manager });
+        const payload = {
+            name: data.name,
+            description: data.description || "",
+            plannedStartDate: data.plannedStartDate.toISOString(),
+            plannedEndDate: data.plannedEndDate.toISOString(),
+            plannedBudget: data.plannedBudget,
+            manager: manager,
+        };
+        onSave(payload);
     } else { // Create mode
+        const payload = {
+            name: data.name,
+            description: data.description || "",
+            plannedStartDate: data.plannedStartDate.toISOString(),
+            plannedEndDate: data.plannedEndDate.toISOString(),
+            plannedBudget: data.plannedBudget,
+            managerId: data.managerId
+        };
         onSave(payload);
     }
   };
