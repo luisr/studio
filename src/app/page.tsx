@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
-import { getUsers } from '@/lib/firebase/service';
+import { getUsers } from '@/lib/supabase/service';
 import type { User } from '@/lib/types';
 import { BrainCircuit, Eye, EyeOff } from 'lucide-react';
 

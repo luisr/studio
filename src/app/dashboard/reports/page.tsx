@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { summarizeAllProjects, type SummarizeAllProjectsOutput } from "@/ai/flows/summarize-all-projects";
 import { BrainCircuit, Loader2 } from "lucide-react";
-import { getProjects } from "@/lib/firebase/service";
+import { getProjects } from "@/lib/supabase/service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 

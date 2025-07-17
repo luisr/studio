@@ -26,7 +26,7 @@ import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
 import { CalendarView } from "./calendar-view";
 import { ProjectForm } from "./project-form";
-import { getUsers, updateProject } from "@/lib/firebase/service";
+import { getUsers, updateProject } from "@/lib/supabase/service";
 import { checkAlerts } from "@/lib/alert-checker";
 
 

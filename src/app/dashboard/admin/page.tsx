@@ -9,7 +9,7 @@ import { summarizeAllProjects, type SummarizeAllProjectsOutput } from '@/ai/flow
 import { BrainCircuit, Loader2, Folder, User as UserIcon, CheckSquare, Settings } from "lucide-react";
 import { KpiCard } from '@/components/dashboard/kpi-card';
 import Link from 'next/link';
-import { getProjects, getUsers } from '@/lib/firebase/service';
+import { getProjects, getUsers } from '@/lib/supabase/service';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 

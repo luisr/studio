@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { createUser, updateUser } from "@/lib/supabase/service";
 
 const userSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
@@ -70,11 +71,11 @@ export function UserForm({ isOpen, onOpenChange, onSave, user, currentUser }: Us
   }, [user, isOpen, form]);
 
   const onSubmit = (data: UserFormValues) => {
-    onSave({ 
+    const userData = { 
       ...data,
-      // Em um app real, o status inicial seria gerenciado pelo backend
       status: user?.status || 'active', 
-    });
+    };
+    onSave(userData);
   };
 
   const dialogTitle = user ? "Editar Usuário" : "Criar Novo Usuário";

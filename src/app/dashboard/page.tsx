@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { PlusCircle, Loader2, BrainCircuit } from 'lucide-react';
 import { summarizeAllProjects, type SummarizeAllProjectsOutput } from '@/ai/flows/summarize-all-projects';
-import { getProjects, getUsers, createProject } from '@/lib/firebase/service';
+import { getProjects, getUsers, createProject } from '@/lib/supabase/service';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 

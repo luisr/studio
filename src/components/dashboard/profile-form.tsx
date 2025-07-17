@@ -18,8 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { updateUser } from "@/lib/supabase/service";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -71,8 +70,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
         try {
-            const userDocRef = doc(db, 'users', user.id);
-            await updateDoc(userDocRef, data);
+            await updateUser(user.id, data);
             toast({
                 title: "Perfil Atualizado",
                 description: "Suas informações foram salvas com sucesso.",
@@ -89,8 +87,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         }
 
         try {
-            const userDocRef = doc(db, 'users', user.id);
-            await updateDoc(userDocRef, {
+            await updateUser(user.id, {
                 password: data.newPassword,
                 mustChangePassword: false,
             });

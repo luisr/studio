@@ -2,7 +2,7 @@
 'use client';
 
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { getProjects, getUsers } from '@/lib/firebase/service';
+import { getProjects, getUsers } from '@/lib/supabase/service';
 import { useEffect, useState } from 'react';
 import type { Project, User } from '@/lib/types';
 

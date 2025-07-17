@@ -13,9 +13,7 @@ import { UserForm } from "@/components/dashboard/user-form";
 import type { User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { getUsers } from "@/lib/firebase/service";
-import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { getUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/service";
 
 
 export default function UsersPage() {
@@ -59,8 +57,7 @@ export default function UsersPage() {
     const handleSaveUser = async (userData: Omit<User, 'id'>) => {
         try {
             if(editingUser) { // Update
-                const userDocRef = doc(db, 'users', editingUser.id);
-                await updateDoc(userDocRef, userData);
+                await updateUser(editingUser.id, userData);
                 toast({ title: "Usuário Atualizado", description: "As informações do usuário foram salvas com sucesso." });
             } else { // Create
                 const newUserPayload = {
@@ -68,7 +65,7 @@ export default function UsersPage() {
                     password: 'BeachPark@2025',
                     mustChangePassword: true,
                 }
-                await addDoc(collection(db, 'users'), newUserPayload);
+                await createUser(newUserPayload);
                 toast({ title: "Usuário Criado", description: "O novo usuário foi adicionado com a senha padrão." });
             }
             await fetchUsers(); // Refresh data
@@ -80,7 +77,7 @@ export default function UsersPage() {
     
     const handleDeleteUser = async (userId: string) => {
         try {
-            await deleteDoc(doc(db, 'users', userId));
+            await deleteUser(userId);
             await fetchUsers(); // Refresh data
             toast({ title: "Usuário Excluído", description: "O usuário foi removido permanentemente.", variant: "destructive"});
         } catch (e) {
@@ -93,8 +90,7 @@ export default function UsersPage() {
            const user = users.find(u => u.id === userId);
            if (!user) return;
            const newStatus = user.status === 'active' ? 'inactive' : 'active';
-           const userDocRef = doc(db, 'users', userId);
-           await updateDoc(userDocRef, { status: newStatus });
+           await updateUser(userId, { status: newStatus });
            await fetchUsers(); // Refresh data
            toast({ title: "Status do Usuário Alterado" });
        } catch (e) {
@@ -104,8 +100,7 @@ export default function UsersPage() {
 
     const handleResetPassword = async (userToReset: User) => {
         try {
-            const userDocRef = doc(db, 'users', userToReset.id);
-            await updateDoc(userDocRef, {
+            await updateUser(userToReset.id, {
                 password: 'BeachPark@2025',
                 mustChangePassword: true,
             });

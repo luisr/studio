@@ -11,7 +11,7 @@ import { CheckCircle, Download, Upload, Server, Loader2, UserCheck, AlertTriangl
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { getProjects, getUsers } from "@/lib/firebase/service";
+import { getProjects, getUsers } from "@/lib/supabase/service";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
