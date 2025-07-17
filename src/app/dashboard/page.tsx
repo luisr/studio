@@ -1,19 +1,19 @@
 // src/app/dashboard/page.tsx
 'use client';
 
-import { useState } from 'react';
-import { projects, users } from "@/lib/data";
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProjectForm } from '@/components/dashboard/project-form';
-import type { Project, TeamMember } from '@/lib/types';
-import { defaultConfiguration } from '@/lib/data';
+import type { Project, User } from '@/lib/types';
+import { defaultConfiguration } from '@/lib/data.bak';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { PlusCircle, Loader2, BrainCircuit } from 'lucide-react';
 import { summarizeAllProjects, type SummarizeAllProjectsOutput } from '@/ai/flows/summarize-all-projects';
-
+import { getProjects, getUsers } from '@/lib/firebase/service'; // Import from service
+import { Skeleton } from '@/components/ui/skeleton';
 
 const calculateProgress = (project: Project): number => {
     if (project.tasks.length === 0) return 0;
@@ -21,18 +21,44 @@ const calculateProgress = (project: Project): number => {
     return Math.round((completedTasks / project.tasks.length) * 100);
 }
 
-// Em um app real, este seria o usuário autenticado.
-const currentUser = users.find(u => u.role === 'Admin');
-
 export default function DashboardProjectsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SummarizeAllProjectsOutput | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  // State to trigger re-render after adding a project
-  const [projectCount, setProjectCount] = useState(projects.length);
+  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const [fetchedProjects, fetchedUsers] = await Promise.all([
+          getProjects(),
+          getUsers()
+        ]);
+        setProjects(fetchedProjects);
+        setUsers(fetchedUsers);
+        // Em um app real, este seria o usuário autenticado.
+        const adminUser = fetchedUsers.find(u => u.role === 'Admin');
+        setCurrentUser(adminUser || null);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        // Handle error appropriately
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   const handleCreateProject = (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration'>) => {
+    // This would now be an API call to create a project in Firestore
+    console.log("Creating project (API call needed):", projectData);
+    // For now, we'll just add it to the local state to see the effect
     const newProject: Project = {
       ...projectData,
       id: `proj-${Date.now()}`,
@@ -41,10 +67,7 @@ export default function DashboardProjectsPage() {
       kpis: {},
       configuration: defaultConfiguration,
     };
-    // Mutate the imported array directly
-    projects.push(newProject);
-    // Trigger a re-render
-    setProjectCount(projects.length);
+    setProjects(prev => [newProject, ...prev]);
     setIsFormOpen(false);
   };
   
@@ -62,6 +85,20 @@ export default function DashboardProjectsPage() {
       setLoadingAnalysis(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+        <Skeleton className="h-12 w-1/2" />
+        <Skeleton className="h-40 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
@@ -87,7 +124,7 @@ export default function DashboardProjectsPage() {
             </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-            <Button onClick={handleGenerateConsolidatedAnalysis} disabled={loadingAnalysis}>
+            <Button onClick={handleGenerateConsolidatedAnalysis} disabled={loadingAnalysis || projects.length === 0}>
                 {loadingAnalysis ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
                 {loadingAnalysis ? 'Analisando Portfólio...' : 'Gerar Análise com IA'}
             </Button>
@@ -141,7 +178,7 @@ export default function DashboardProjectsPage() {
                     <div>
                         <h4 className="text-sm font-semibold mb-2">Equipe</h4>
                         <div className="flex -space-x-2 overflow-hidden">
-                            {project.team.slice(0, 5).map((member: TeamMember) => (
+                            {project.team.slice(0, 5).map((member) => (
                                 <Avatar key={member.user.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-background">
                                 <AvatarImage src={member.user.avatar} alt={member.user.name} />
                                 <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>

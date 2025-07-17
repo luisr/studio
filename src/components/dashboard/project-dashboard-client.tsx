@@ -26,7 +26,7 @@ import { KanbanView } from "./KanbanView";
 import type { LucideIcon } from "lucide-react";
 import { CalendarView } from "./calendar-view";
 import { ProjectForm } from "./project-form";
-import { users as allUsers } from "@/lib/data";
+import { getUsers } from "@/lib/firebase/service";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -117,11 +117,13 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
   // --- Start of Permissions Logic ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<ProjectRole | null>(null);
 
   useEffect(() => {
     // In a real app, you would get the current user from an auth context.
     // For now, we'll simulate it by picking the first user from the project's team.
+    getUsers().then(setAllUsers);
     const user = project.team[0]?.user;
     if (user) {
       setCurrentUser(user);
