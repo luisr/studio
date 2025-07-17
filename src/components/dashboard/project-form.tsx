@@ -41,6 +41,7 @@ const projectSchema = z.object({
   plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
   plannedBudget: z.coerce.number().min(0, "O orçamento deve ser um valor positivo."),
+  team: z.array(z.any()).optional(), // Team is managed in project settings now
 }).refine(data => data.plannedEndDate >= data.plannedStartDate, {
     message: "A data de fim não pode ser anterior à data de início.",
     path: ["plannedEndDate"],
@@ -64,8 +65,6 @@ const roleOptions: { value: ProjectRole, label: string }[] = [
 
 export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = null }: ProjectFormProps) {
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<ProjectRole>('Editor');
   
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -96,49 +95,35 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
         }
     }
   }, [project, isOpen, form]);
-
-  const handleAddUserToTeam = () => {
-    if (selectedUserId) {
-      const userToAdd = users.find(u => u.id === selectedUserId);
-      if (userToAdd && !team.some(member => member.user.id === userToAdd.id)) {
-        setTeam(prev => [...prev, { user: userToAdd, role: selectedRole }]);
-      }
-      setSelectedUserId('');
-      setSelectedRole('Editor');
-    }
-  };
-
-  const handleRemoveUserFromTeam = (userId: string) => {
-    setTeam(prev => prev.filter(member => member.user.id !== userId));
-  };
   
   const onSubmit = (data: ProjectFormValues) => {
     const manager = users.find(u => u.id === data.managerId);
     if (!manager) return;
     
-    // Ensure manager is in the team and has the Manager role
-    let finalTeam = [...team];
-    const managerInTeam = finalTeam.find(m => m.user.id === manager.id);
-    if (managerInTeam) {
-        managerInTeam.role = 'Manager';
-    } else {
-        finalTeam.push({ user: manager, role: 'Manager' });
-    }
-    
-    const payload = {
-        name: data.name,
-        description: data.description || "",
-        manager: manager,
-        team: finalTeam,
-        plannedStartDate: data.plannedStartDate.toISOString(),
-        plannedEndDate: data.plannedEndDate.toISOString(),
-        plannedBudget: data.plannedBudget,
-    };
-
+    // For editing, we might want to preserve the team if it's not managed here
     if (project) {
-        onSave({ ...project, ...payload });
-    } else {
+        const payload = {
+            ...project,
+            name: data.name,
+            description: data.description || "",
+            manager: manager,
+            team: team, // Keep existing team on edit
+            plannedStartDate: data.plannedStartDate.toISOString(),
+            plannedEndDate: data.plannedEndDate.toISOString(),
+            plannedBudget: data.plannedBudget,
+        };
         onSave(payload);
+    } else {
+        // For creating, we just pass the core data
+        const payload = {
+            name: data.name,
+            description: data.description || "",
+            manager: manager,
+            plannedStartDate: data.plannedStartDate.toISOString(),
+            plannedEndDate: data.plannedEndDate.toISOString(),
+            plannedBudget: data.plannedBudget,
+        };
+         onSave(payload);
     }
   };
   
@@ -146,6 +131,23 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
   const dialogDescription = project 
     ? "Atualize os detalhes e a equipe do seu projeto."
     : "Preencha os detalhes para criar um novo projeto.";
+
+  const handleAddUserToTeam = (userId: string, role: ProjectRole) => {
+      const userToAdd = users.find(u => u.id === userId);
+      if (userToAdd && !team.some(member => member.user.id === userToAdd.id)) {
+        setTeam(prev => [...prev, { user: userToAdd, role: role }]);
+      }
+  };
+
+  const handleRemoveUserFromTeam = (userId: string) => {
+    setTeam(prev => prev.filter(member => member.user.id !== userId));
+  };
+   const handleRoleChange = (userId: string, newRole: ProjectRole) => {
+        setTeam(prev => prev.map(member => 
+            member.user.id === userId ? { ...member, role: newRole } : member
+        ));
+    };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -270,53 +272,64 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
               )}
             />
 
-            <div className="space-y-2">
-              <FormLabel>Equipe do Projeto</FormLabel>
-              <div className="flex gap-2">
-                 <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Selecione um membro..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {users.filter(u => !team.some(m => m.user.id === u.id)).map((user) => (
-                          <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+             {project && (
+                <div className="space-y-2">
+                    <FormLabel>Equipe do Projeto</FormLabel>
+                    <div className="space-y-2 rounded-md border p-2 min-h-[80px]">
+                        {team.map(member => (
+                            <div key={member.user.id} className="flex items-center justify-between p-1">
+                                <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={member.user.avatar} alt={member.user.name} />
+                                    <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <span>{member.user.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select 
+                                        value={member.role} 
+                                        onValueChange={(v) => handleRoleChange(member.user.id, v as ProjectRole)}
+                                        disabled={member.role === 'Manager'}
+                                    >
+                                        <SelectTrigger className="w-[150px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                        {roleOptions.map(opt => (
+                                            <SelectItem 
+                                                key={opt.value} 
+                                                value={opt.value} 
+                                                disabled={opt.value === 'Manager'}
+                                            >
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {member.role !== 'Manager' && (
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveUserFromTeam(member.user.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         ))}
-                    </SelectContent>
-                </Select>
-                 <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as ProjectRole)}>
-                    <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Função" />
-                    </SelectTrigger>
-                    <SelectContent>
-                       {roleOptions.map(opt => (
-                           <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                       ))}
-                    </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" onClick={handleAddUserToTeam}><PlusCircle className="mr-2"/>Adicionar</Button>
-              </div>
-              <div className="space-y-2 rounded-md border p-2 min-h-[80px]">
-                  {team.length > 0 ? team.map(member => (
-                    <div key={member.user.id} className="flex items-center justify-between p-1">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.user.avatar} alt={member.user.name} />
-                            <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <span>{member.user.name}</span>
-                        </div>
-                         <div className="flex items-center gap-2">
-                             <Badge variant="secondary">{roleOptions.find(r => r.value === member.role)?.label}</Badge>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveUserFromTeam(member.user.id)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                         </div>
                     </div>
-                  )) : (
-                    <p className="text-sm text-muted-foreground text-center p-4">Nenhum membro na equipe ainda.</p>
-                  )}
-              </div>
-            </div>
+                     <div className="flex gap-2">
+                        <Select onValueChange={(userId) => handleAddUserToTeam(userId, 'Editor')}>
+                            <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Adicionar membro à equipe..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {users.filter(u => !team.some(m => m.user.id === u.id)).map((user) => (
+                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            )}
+
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

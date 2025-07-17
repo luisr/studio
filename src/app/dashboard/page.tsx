@@ -45,8 +45,10 @@ export default function DashboardProjectsPage() {
       setProjects(fetchedProjects);
       setUsers(fetchedUsers);
       // Em um app real, este seria o usuário autenticado.
-      const adminUser = fetchedUsers.find(u => u.role === 'Admin');
-      setCurrentUser(adminUser || null);
+      const userJson = sessionStorage.getItem('currentUser');
+      if (userJson) {
+        setCurrentUser(JSON.parse(userJson));
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({
@@ -61,15 +63,16 @@ export default function DashboardProjectsPage() {
 
   useEffect(() => {
     fetchAllData();
-  }, [toast]);
+  }, []);
 
-  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks'>) => {
+  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team'> & { manager: User }) => {
     const newProject: Omit<Project, 'id'> = {
       ...projectData,
       actualCost: 0,
       tasks: [],
       kpis: {},
       configuration: defaultConfiguration,
+      team: [{ user: projectData.manager, role: 'Manager' }], // Manager is the first team member
     };
     try {
        await createProject(newProject);

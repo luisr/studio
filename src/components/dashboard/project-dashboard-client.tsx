@@ -133,10 +133,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
 
   useEffect(() => {
     // In a real app, you would get the current user from an auth context.
-    // For now, we'll simulate it by picking the first user from the project's team.
     getUsers().then(setAllUsers);
-    const user = project.team[0]?.user;
-    if (user) {
+    const userJson = sessionStorage.getItem('currentUser');
+    if (userJson) {
+      const user: User = JSON.parse(userJson);
       setCurrentUser(user);
       const member = project.team.find(m => m.user.id === user.id);
       setCurrentUserRole(member ? member.role : null);
@@ -202,12 +202,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     updateProjectAndPersist(updatedProject);
   }, [project, updateProjectAndPersist]);
 
-  const handleProjectUpdate = (updatedProjectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks'>) => {
-     const updatedProject = {
-        ...project,
-        ...updatedProjectData,
-    };
-    updateProjectAndPersist(updatedProject);
+  const handleProjectUpdate = (updatedProjectData: Project) => {
+    updateProjectAndPersist(updatedProjectData);
     setIsProjectFormOpen(false);
   }
   
