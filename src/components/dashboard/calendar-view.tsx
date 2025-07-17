@@ -88,8 +88,8 @@ export function CalendarView({ project, onEditTask }: CalendarViewProps) {
          <ViewActions contentRef={printableRef} />
       </CardHeader>
       <CardContent className="printable" ref={printableRef}>
-        <div className="printable-content grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 flex justify-center">
+        <div className="printable-content grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3 flex justify-center">
             <Calendar
               mode="single"
               selected={selectedDate}
