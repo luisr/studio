@@ -41,10 +41,29 @@ export async function getProject(id: string): Promise<Project | undefined> {
 }
 
 export async function getUsers(): Promise<User[]> {
+  const superAdmin: User = {
+    id: 'super-admin-001',
+    name: 'Luis Ribeiro',
+    email: 'luis.ribeiro@beachpark.com.br',
+    password: 'Lilian@2019',
+    role: 'Admin',
+    avatar: 'https://placehold.co/100x100.png',
+    status: 'active',
+    mustChangePassword: false,
+  };
+
   const usersCol = collection(db, 'users');
   const userSnapshot = await getDocs(usersCol);
   const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-  return userList;
+  
+  // Ensure the super admin is always present and is the first user
+  const adminExists = userList.some(u => u.email === superAdmin.email);
+  if (!adminExists) {
+    return [superAdmin, ...userList];
+  }
+
+  // If admin exists from DB, make sure it's up-to-date and first
+  return [superAdmin, ...userList.filter(u => u.email !== superAdmin.email)];
 }
 
 export async function createProject(projectData: Omit<Project, 'id'>): Promise<string> {
