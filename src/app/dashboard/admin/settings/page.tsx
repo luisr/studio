@@ -1,15 +1,16 @@
 // src/app/dashboard/admin/settings/page.tsx
 'use client';
 
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Download, Upload, Server, Loader2 } from "lucide-react";
+import { CheckCircle, Download, Upload, Server, Loader2, UserCheck, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { projects, users } from "@/lib/data";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 
 
 export default function AdminSettingsPage() {
@@ -17,6 +18,37 @@ export default function AdminSettingsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isRestoring, setIsRestoring] = useState(false);
     const [backupFile, setBackupFile] = useState<File | null>(null);
+
+    const systemMetrics = useMemo(() => {
+        // Simulated storage usage calculation
+        const projectSize = JSON.stringify(projects).length;
+        const usersSize = JSON.stringify(users).length;
+        const totalStorageBytes = projectSize + usersSize;
+        const totalStorageGB = (totalStorageBytes / (1024 * 1024 * 1024)).toFixed(2);
+        const storageLimitGB = 10;
+        const storagePercentage = (parseFloat(totalStorageGB) / storageLimitGB) * 100;
+
+        // Simulated AI usage
+        const totalTasks = projects.reduce((acc, p) => acc + p.tasks.length, 0);
+        const aiCalls = projects.length * 5 + totalTasks * 2; // Example calculation
+        const aiCallsLimit = 10000;
+        
+        // Active Users
+        const activeUsers = users.filter(u => u.status === 'active').length;
+
+        // Projects at risk
+        const projectsAtRisk = projects.filter(p => p.actualCost > p.plannedBudget).length;
+
+        return {
+            storageUsed: `${totalStorageGB} GB`,
+            storageLimit: `${storageLimitGB} GB`,
+            storagePercentage: storagePercentage.toFixed(2),
+            aiCalls,
+            aiCallsLimit,
+            activeUsers,
+            projectsAtRisk,
+        };
+    }, []);
 
     const handleExport = () => {
         toast({
@@ -176,25 +208,35 @@ export default function AdminSettingsPage() {
             <CardTitle>Métricas do Sistema</CardTitle>
             <CardDescription>Visão geral do uso dos recursos do sistema.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="p-4 border rounded-lg">
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                    <Server className="h-5 w-5"/>
-                    <h4 className="font-semibold">Uso de Armazenamento</h4>
-                </div>
-                <p className="text-2xl font-bold">1.2 GB / 10 GB</p>
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary mt-2">
-                    <div className="absolute h-full w-full flex-1 bg-primary transition-all" style={{width: '12%'}}></div>
-                </div>
-            </div>
-             <div className="p-4 border rounded-lg">
-                 <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                    <Server className="h-5 w-5"/>
-                    <h4 className="font-semibold">Uso da IA</h4>
-                </div>
-                <p className="text-2xl font-bold">1,250 <span className="text-base text-muted-foreground">chamadas/mês</span></p>
-                <p className="text-xs text-muted-foreground">O limite é de 10,000 chamadas/mês.</p>
-            </div>
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+             <KpiCard
+                title="Armazenamento"
+                value={systemMetrics.storageUsed}
+                icon={Server}
+                description={`de ${systemMetrics.storageLimit}`}
+                color="blue"
+            />
+             <KpiCard
+                title="Uso da IA"
+                value={systemMetrics.aiCalls.toLocaleString()}
+                icon={Server}
+                description={`de ${systemMetrics.aiCallsLimit.toLocaleString()} chamadas/mês`}
+                color="purple"
+            />
+            <KpiCard
+                title="Usuários Ativos"
+                value={systemMetrics.activeUsers}
+                icon={UserCheck}
+                description={`de ${users.length} usuários totais`}
+                color="green"
+            />
+             <KpiCard
+                title="Projetos em Risco"
+                value={systemMetrics.projectsAtRisk}
+                icon={AlertTriangle}
+                description="Custo real acima do planejado"
+                color="red"
+            />
         </CardContent>
       </Card>
 

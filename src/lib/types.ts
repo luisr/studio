@@ -24,7 +24,7 @@ export interface User {
   email: string;
   phone?: string;
   role?: UserRole; // Global/default role
-  status?: UserStatus;
+  status: UserStatus;
 }
 
 export interface Attachment {
