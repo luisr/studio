@@ -1,6 +1,8 @@
+// src/components/dashboard/kpi-card.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface KpiCardProps {
   title: string;
@@ -21,6 +23,22 @@ const colorClasses = {
 
 
 export function KpiCard({ title, value, icon: Icon, description, className, color = 'blue' }: KpiCardProps) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const formatValue = (val: string | number) => {
+    if (typeof val === 'number') {
+      if (!isClient) {
+        return val; // Render raw number on server
+      }
+      return new Intl.NumberFormat('pt-BR').format(val);
+    }
+    return val;
+  };
+
   return (
     <Card className={cn("border-l-4", colorClasses[color], className)}>
       <CardHeader className="pb-2">
@@ -28,7 +46,7 @@ export function KpiCard({ title, value, icon: Icon, description, className, colo
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold flex items-center justify-between">
-          <span>{value}</span>
+          <span>{formatValue(value)}</span>
           <Icon className="h-5 w-5 text-muted-foreground" />
         </div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}

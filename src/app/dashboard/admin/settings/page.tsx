@@ -218,9 +218,9 @@ export default function AdminSettingsPage() {
             />
              <KpiCard
                 title="Uso da IA"
-                value={systemMetrics.aiCalls.toLocaleString()}
+                value={systemMetrics.aiCalls}
                 icon={Server}
-                description={`de ${systemMetrics.aiCallsLimit.toLocaleString()} chamadas/mês`}
+                description={`de ${systemMetrics.aiCallsLimit} chamadas/mês`}
                 color="purple"
             />
             <KpiCard
