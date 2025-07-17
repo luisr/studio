@@ -34,10 +34,12 @@ import { useState } from "react";
 import { ScrollArea } from "../ui/scroll-area";
 
 
-const BrainIcon = () => (
+const LogoIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white p-2 bg-primary rounded-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.95-3.38 2.5 2.5 0 0 1 1.22-3.63 2.5 2.5 0 0 1 3.53-2.62 2.5 2.5 0 0 1 3.16-3.33"/>
-        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.95-3.38 2.5 2.5 0 0 0-1.22-3.63 2.5 2.5 0 0 0-3.53-2.62 2.5 2.5 0 0 0-3.16-3.33"/>
+        <path d="M11 12.5a3.5 3.5 0 0 1-3.5-3.5V5.5a3.5 3.5 0 0 1 7 0v3.5a3.5 3.5 0 0 1-3.5 3.5z" />
+        <path d="M12 12.5V18" />
+        <path d="M15 16h-6" />
+        <path d="M9 20h6" />
     </svg>
 )
 
@@ -60,9 +62,9 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
     <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col justify-between">
       <div className="flex flex-col gap-4 overflow-hidden">
         <Link href="/dashboard" className="flex items-center gap-3 pb-2 px-2 border-b">
-           <BrainIcon />
+           <LogoIcon />
           <div>
-            <h1 className="text-xl font-bold text-foreground">To Sabendo</h1>
+            <h1 className="text-xl font-bold text-foreground">Tô Sabendo!</h1>
           </div>
         </Link>
 

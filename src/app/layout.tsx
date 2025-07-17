@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'To Sabendo',
+  title: 'Tô Sabendo!',
   description: 'Gerenciamento de Projetos com Inteligência Preditiva e Transparência',
 };
 
