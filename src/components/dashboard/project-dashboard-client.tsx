@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment, ProjectRole } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment, ProjectRole, ActiveAlert } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -27,6 +27,7 @@ import type { LucideIcon } from "lucide-react";
 import { CalendarView } from "./calendar-view";
 import { ProjectForm } from "./project-form";
 import { getUsers, updateProject } from "@/lib/firebase/service";
+import { checkAlerts } from "@/lib/alert-checker";
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -104,6 +105,7 @@ const iconMap: Record<string, LucideIcon> = {
 
 export function ProjectDashboardClient({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
+  const [activeAlerts, setActiveAlerts] = useState<ActiveAlert[]>([]);
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -158,6 +160,15 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   useEffect(() => {
     setProject(initialProject);
   }, [initialProject]);
+
+   // Run alert checks whenever the project data changes
+  useEffect(() => {
+    if (project) {
+        const triggeredAlerts = checkAlerts(project);
+        setActiveAlerts(triggeredAlerts);
+    }
+  }, [project]);
+
 
   const updateProjectAndPersist = useCallback(async (updatedProject: Project) => {
     setProject(updatedProject);
@@ -719,7 +730,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     <>
       <div className="flex flex-col h-full bg-background">
         <ProjectHeader 
-          project={project} 
+          project={project}
+          activeAlerts={activeAlerts}
           canEditProject={canEditProject}
           canEditTasks={canEditTasks}
           onNewTaskClick={handleCreateTask}

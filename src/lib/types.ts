@@ -92,6 +92,13 @@ export interface AlertRule {
   label: string;
 }
 
+export interface ActiveAlert {
+    id: string;
+    ruleId: string;
+    message: string;
+    severity: 'info' | 'warning' | 'critical';
+}
+
 
 export interface ProjectConfiguration {
     statuses: StatusDefinition[];
