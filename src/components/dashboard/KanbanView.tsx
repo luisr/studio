@@ -8,7 +8,7 @@ import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sort
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface KanbanViewProps {
@@ -17,14 +17,15 @@ interface KanbanViewProps {
 }
 
 const KanbanTaskCard = ({ task }: { task: Task }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
+        opacity: isDragging ? 0.5 : 1,
     };
 
     return (
-        <Card ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-4 bg-card hover:shadow-md cursor-grab active:cursor-grabbing">
+        <Card ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-4 bg-card hover:shadow-md cursor-grab active:cursor-grabbing touch-none">
             <CardContent className="p-3">
                 <p className="font-semibold text-sm mb-2">{task.name}</p>
                 <div className="flex justify-between items-center">
@@ -33,7 +34,8 @@ const KanbanTaskCard = ({ task }: { task: Task }) => {
                             {task.priority || 'Média'}
                         </Badge>
                     </div>
-                    <Avatar className="h-6 w-6">
+                     <Avatar className="h-6 w-6">
+                        <AvatarImage src={task.assignee.avatar} alt={task.assignee.name} />
                         <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                 </div>
@@ -43,12 +45,11 @@ const KanbanTaskCard = ({ task }: { task: Task }) => {
 };
 
 const KanbanColumn = ({ status, tasks }: { status: StatusDefinition, tasks: Task[] }) => {
-    const { setNodeRef } = useSortable({ id: status.id });
     const taskIds = useMemo(() => tasks.map(t => t.id), [tasks]);
     
     return (
-        <div ref={setNodeRef} className="flex-shrink-0 w-72">
-            <Card className="bg-muted/50 h-full">
+        <div className="flex-shrink-0 w-72 h-full">
+            <Card className="bg-muted/50 h-full flex flex-col">
                 <CardHeader className="p-4 border-b">
                     <CardTitle className="text-base flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
@@ -56,15 +57,15 @@ const KanbanColumn = ({ status, tasks }: { status: StatusDefinition, tasks: Task
                         <Badge variant="secondary" className="ml-auto">{tasks.length}</Badge>
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-2">
-                    <ScrollArea className="h-[calc(100vh-20rem)]">
+                <ScrollArea className="flex-grow">
+                    <CardContent className="p-2 h-full">
                         <SortableContext items={taskIds} strategy={rectSortingStrategy}>
                             {tasks.map(task => (
                                 <KanbanTaskCard key={task.id} task={task} />
                             ))}
                         </SortableContext>
-                    </ScrollArea>
-                </CardContent>
+                    </CardContent>
+                </ScrollArea>
             </Card>
         </div>
     );
@@ -72,7 +73,7 @@ const KanbanColumn = ({ status, tasks }: { status: StatusDefinition, tasks: Task
 
 export function KanbanView({ project, onTaskStatusChange }: KanbanViewProps) {
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor)
     );
 
@@ -82,37 +83,49 @@ export function KanbanView({ project, onTaskStatusChange }: KanbanViewProps) {
             groupedTasks.set(status.name, []);
         });
         project.tasks.forEach(task => {
-            if (groupedTasks.has(task.status)) {
-                groupedTasks.get(task.status)?.push(task);
+            const taskStatus = task.status || project.configuration.statuses.find(s => s.isDefault)?.name || 'A Fazer';
+            if (groupedTasks.has(taskStatus)) {
+                groupedTasks.get(taskStatus)?.push(task);
             }
         });
         return groupedTasks;
     }, [project.tasks, project.configuration.statuses]);
     
+    const findContainer = (id: string) => {
+        if (project.configuration.statuses.some(s => s.name === id)) {
+            return id;
+        }
+        for (const [statusName, tasks] of tasksByStatus.entries()) {
+            if (tasks.some(t => t.id === id)) {
+                return statusName;
+            }
+        }
+        return null;
+    }
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (active && over && active.id !== over.id) {
-            const activeTask = project.tasks.find(t => t.id === active.id);
-            if (!activeTask) return;
-            
-            // Find which column the `over` element belongs to
-            let newStatusName: string | null = null;
-            
-            // Check if we dropped over a column (status id)
-            const overStatus = project.configuration.statuses.find(s => s.id === over.id);
-            if(overStatus) {
-                newStatusName = overStatus.name;
-            } else {
-                 // Or if we dropped over another task
-                 const overTask = project.tasks.find(t => t.id === over.id);
-                 if (overTask) {
-                     newStatusName = overTask.status;
-                 }
+        if (!active || !over) return;
+        
+        const activeContainer = findContainer(active.id as string);
+        const overContainer = findContainer(over.id as string);
+
+        if (!activeContainer || !overContainer || activeContainer !== overContainer) {
+            // This handles moving a task to a different column
+            const taskId = active.id as string;
+            let newStatus = overContainer;
+
+            // If we drop over a task in another column, get that column's status
+            if (!project.configuration.statuses.some(s => s.name === newStatus)) {
+                const overTask = project.tasks.find(t => t.id === over.id);
+                if (overTask) {
+                    newStatus = overTask.status;
+                }
             }
             
-            if (newStatusName && activeTask.status !== newStatusName) {
-                onTaskStatusChange(active.id as string, newStatusName);
+            if (newStatus && newStatus !== activeContainer) {
+                onTaskStatusChange(taskId, newStatus);
             }
         }
     };
@@ -120,10 +133,10 @@ export function KanbanView({ project, onTaskStatusChange }: KanbanViewProps) {
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex gap-6 p-1">
+                <div className="flex gap-6 p-1 h-[calc(100vh-18rem)]">
                     {project.configuration.statuses.map(status => (
                         <KanbanColumn
-                            key={status.id}
+                            key={status.name}
                             status={status}
                             tasks={tasksByStatus.get(status.name) || []}
                         />
