@@ -1,8 +1,7 @@
 // src/app/dashboard/tasks/page.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
-import { projects } from '@/lib/data';
+import { useState, useMemo, useEffect } from 'react';
 import type { Task, Project } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
 import { format } from 'date-fns';
+import { getProjects } from '@/lib/firebase/service';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AggregatedTask extends Task {
   projectName: string;
@@ -28,6 +30,29 @@ export default function AllTasksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchProjects() {
+        setLoading(true);
+        try {
+            const fetchedProjects = await getProjects();
+            setProjects(fetchedProjects);
+        } catch (error) {
+            toast({
+                title: "Erro ao carregar tarefas",
+                description: "Não foi possível buscar os dados dos projetos.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchProjects();
+  }, [toast]);
+
 
   const allTasks: AggregatedTask[] = useMemo(() => {
     return projects.flatMap(project =>
@@ -37,7 +62,7 @@ export default function AllTasksPage() {
         projectId: project.id,
       }))
     );
-  }, []);
+  }, [projects]);
   
   const allAssignees = useMemo(() => {
     const assignees = new Map<string, {id: string, name: string}>();
@@ -60,10 +85,29 @@ export default function AllTasksPage() {
   
   const formatDate = (dateString: string) => {
     if(!dateString) return '-';
-    // When a date string doesn't have a timezone, JS can interpret it in the server's timezone
-    // or the client's timezone, leading to a mismatch. Adding 'T00:00:00' makes it explicit.
-    const date = new Date(`${dateString}T00:00:00`);
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
     return format(date, 'dd/MM/yyyy');
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+        <Skeleton className="h-10 w-1/3" />
+        <Card>
+            <CardHeader className='border-b'>
+                 <Skeleton className="h-10 w-full" />
+            </CardHeader>
+            <CardContent className="p-0">
+                 <div className="p-4 space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                 </div>
+            </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

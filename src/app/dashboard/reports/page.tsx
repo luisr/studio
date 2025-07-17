@@ -1,22 +1,47 @@
 // src/app/dashboard/reports/page.tsx
 "use client";
 
-import { useState } from "react";
-import { projects } from "@/lib/data";
+import { useState, useEffect } from "react";
+import type { Project } from "@/lib/types";
 import { Accordion } from "@/components/ui/accordion";
 import { ProjectSummaryCard } from "@/components/dashboard/project-summary-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { summarizeAllProjects, type SummarizeAllProjectsOutput } from "@/ai/flows/summarize-all-projects";
 import { BrainCircuit, Loader2 } from "lucide-react";
+import { getProjects } from "@/lib/firebase/service";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReportsPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [result, setResult] = useState<SummarizeAllProjectsOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchProjects() {
+        setLoading(true);
+        try {
+            const fetchedProjects = await getProjects();
+            setProjects(fetchedProjects);
+        } catch (error) {
+            toast({
+                title: "Erro ao carregar relatórios",
+                description: "Não foi possível buscar os dados dos projetos.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchProjects();
+  }, [toast]);
 
   const handleGenerateConsolidatedAnalysis = async () => {
-    setLoading(true);
+    setLoadingAnalysis(true);
     setError(null);
     setResult(null);
     try {
@@ -26,10 +51,23 @@ export default function ReportsPage() {
       console.error(e);
       setError("Falha ao gerar a análise consolidada. Por favor, tente novamente.");
     } finally {
-      setLoading(false);
+      setLoadingAnalysis(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+        <Skeleton className="h-10 w-1/2" />
+        <Skeleton className="h-48 w-full" />
+        <div className="space-y-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
@@ -50,12 +88,12 @@ export default function ReportsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button onClick={handleGenerateConsolidatedAnalysis} disabled={loading}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
-            {loading ? 'Analisando Portfólio...' : 'Gerar Análise Consolidada'}
+          <Button onClick={handleGenerateConsolidatedAnalysis} disabled={loadingAnalysis || projects.length === 0}>
+            {loadingAnalysis ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
+            {loadingAnalysis ? 'Analisando Portfólio...' : 'Gerar Análise Consolidada'}
           </Button>
 
-           {loading && (
+           {loadingAnalysis && (
             <div className="flex items-center justify-center p-8 border rounded-lg bg-muted/50">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-4 text-muted-foreground">A IA está analisando os dados de todos os projetos...</p>
@@ -80,7 +118,6 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-
         </CardContent>
       </Card>
 
