@@ -11,7 +11,7 @@ const Logo = () => (
     <div className="flex justify-center mb-4">
         <Image 
             src="https://placehold.co/150x80.png"
-            alt="BeachPark Logo"
+            alt="Tô de Olho! Logo"
             width={120}
             height={64}
             className="rounded-lg"
@@ -29,7 +29,7 @@ export default function LoginPage() {
             <div className='flex justify-between items-start'>
                 <div className="text-center w-full">
                     <Logo />
-                    <CardTitle className="text-2xl font-bold">BeachPark</CardTitle>
+                    <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
                     <CardDescription>Bem-vindo! Faça login para acessar seus projetos.</CardDescription>
                 </div>
                 <ThemeToggle />

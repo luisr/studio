@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: 'BeachPark',
+  title: 'Tô de Olho!',
   description: 'Gerenciamento de Projetos com Inteligência Preditiva e Transparência',
 };
 
