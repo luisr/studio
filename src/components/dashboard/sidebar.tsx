@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   ChevronDown,
   Shield,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -58,12 +59,19 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [isProjectsOpen, setIsProjectsOpen] = useState(true);
 
-  const navLinks = [
+  const mainLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  ];
+
+  const analysisLinks = [
     { href: "/dashboard/tasks", label: "Todas as Tarefas", icon: CheckSquare },
     { href: "/dashboard/reports", label: "Relatórios", icon: FileText },
-    { href: "/dashboard/users", label: "Usuários", icon: Users },
   ];
   
+  const managementLinks = [
+      { href: "/dashboard/users", label: "Usuários", icon: Users },
+  ];
+
   const adminLinks = [
       { href: "/dashboard/admin", label: "Admin", icon: Shield },
   ];
@@ -77,6 +85,26 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
 
         <ScrollArea className="flex-1 -mr-4 pr-4">
             <div className="space-y-4">
+                <nav className="space-y-1 px-2">
+                    {mainLinks.map((link) => (
+                    <Link
+                        key={link.label}
+                        href={link.href}
+                        className={cn(
+                        "flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors",
+                        pathname === link.href
+                            ? "bg-primary text-white"
+                            : "hover:bg-muted"
+                        )}
+                    >
+                        <link.icon className="w-4 h-4" />
+                        <span>{link.label}</span>
+                    </Link>
+                    ))}
+                </nav>
+                
+                <Separator />
+
                 <nav className="space-y-1 px-2">
                     <Collapsible open={isProjectsOpen} onOpenChange={setIsProjectsOpen}>
                         <CollapsibleTrigger className="w-full">
@@ -111,7 +139,28 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
                 
                 <nav className="space-y-1 px-2">
                     <h2 className="px-2 mb-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase">Análise</h2>
-                    {navLinks.map((link) => (
+                    {analysisLinks.map((link) => (
+                    <Link
+                        key={link.label}
+                        href={link.href}
+                        className={cn(
+                        "flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors",
+                        pathname.startsWith(link.href)
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted"
+                        )}
+                    >
+                        <link.icon className="w-4 h-4" />
+                        <span>{link.label}</span>
+                    </Link>
+                    ))}
+                </nav>
+
+                <Separator />
+
+                <nav className="space-y-1 px-2">
+                    <h2 className="px-2 mb-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase">Gerenciamento</h2>
+                    {managementLinks.map((link) => (
                     <Link
                         key={link.label}
                         href={link.href}

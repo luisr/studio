@@ -63,7 +63,7 @@ export default function DashboardProjectsPage() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [toast]);
 
   const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team'> & { manager: User }) => {
     const newProject: Omit<Project, 'id'> = {
