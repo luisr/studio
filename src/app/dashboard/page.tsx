@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { projects as initialProjects, users } from "@/lib/data";
+import { projects, users } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,12 @@ const calculateProgress = (project: Project): number => {
 const currentUser = users.find(u => u.role === 'Admin');
 
 export default function DashboardProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SummarizeAllProjectsOutput | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-
+  // State to trigger re-render after adding a project
+  const [projectCount, setProjectCount] = useState(projects.length);
 
   const handleCreateProject = (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration'>) => {
     const newProject: Project = {
@@ -41,7 +41,10 @@ export default function DashboardProjectsPage() {
       kpis: {},
       configuration: defaultConfiguration,
     };
-    setProjects(prevProjects => [...prevProjects, newProject]);
+    // Mutate the imported array directly
+    projects.push(newProject);
+    // Trigger a re-render
+    setProjectCount(projects.length);
     setIsFormOpen(false);
   };
   
