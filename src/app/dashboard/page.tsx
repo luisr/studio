@@ -65,7 +65,7 @@ export default function DashboardProjectsPage() {
     fetchAllData();
   }, [toast]);
 
-  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team' | 'manager'> & { managerId: string }) => {
+  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'kpis' | 'actualCost' | 'configuration' | 'tasks' | 'team'> & { managerId: string }) => {
     const manager = users.find(u => u.id === projectData.managerId);
     if (!manager) {
         toast({ title: "Gerente não encontrado", variant: "destructive" });
@@ -75,8 +75,8 @@ export default function DashboardProjectsPage() {
     const newProject: Omit<Project, 'id'> = {
       name: projectData.name,
       description: projectData.description,
-      plannedStartDate: projectData.plannedStartDate, // Already a string
-      plannedEndDate: projectData.plannedEndDate, // Already a string
+      plannedStartDate: projectData.plannedStartDate,
+      plannedEndDate: projectData.plannedEndDate,
       plannedBudget: projectData.plannedBudget,
       manager: manager,
       actualCost: 0,

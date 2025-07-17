@@ -84,31 +84,23 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
   }, [project, isOpen, form]);
   
   const onSubmit = (data: ProjectFormValues) => {
-    // For editing, we pass only the updated fields
-    if (project) {
+    const payload = {
+      name: data.name,
+      description: data.description || "",
+      plannedStartDate: data.plannedStartDate.toISOString(),
+      plannedEndDate: data.plannedEndDate.toISOString(),
+      plannedBudget: data.plannedBudget,
+      managerId: data.managerId
+    };
+
+    if (project) { // Edit mode
         const manager = users.find(u => u.id === data.managerId);
         if (!manager) return;
 
-        const payload = {
-            name: data.name,
-            description: data.description || "",
-            manager: manager,
-            plannedStartDate: data.plannedStartDate.toISOString(),
-            plannedEndDate: data.plannedEndDate.toISOString(),
-            plannedBudget: data.plannedBudget,
-        };
+        const { managerId, ...rest } = payload;
+        onSave({ ...rest, manager });
+    } else { // Create mode
         onSave(payload);
-    } else {
-        // For creating, we pass the managerId to be resolved by the parent
-        const payload = {
-            name: data.name,
-            description: data.description || "",
-            managerId: data.managerId,
-            plannedStartDate: data.plannedStartDate.toISOString(),
-            plannedEndDate: data.plannedEndDate.toISOString(),
-            plannedBudget: data.plannedBudget,
-        };
-         onSave(payload);
     }
   };
   
