@@ -13,8 +13,8 @@ import { UserForm } from "@/components/dashboard/user-form";
 import type { User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { getUsers, createProject, updateProject } from "@/lib/firebase/service";
-import { addDoc, collection, deleteDoc, doc, updateDoc } from "@/lib/firebase/db";
+import { getUsers } from "@/lib/firebase/service";
+import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 
