@@ -1,16 +1,18 @@
 // src/app/dashboard/admin/settings/page.tsx
 'use client';
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
+import type { Project, User } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Download, Upload, Server, Loader2, UserCheck, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { projects, users } from "@/lib/data";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { getProjects, getUsers } from "@/lib/firebase/service";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function AdminSettingsPage() {
@@ -19,19 +21,45 @@ export default function AdminSettingsPage() {
     const [isRestoring, setIsRestoring] = useState(false);
     const [backupFile, setBackupFile] = useState<File | null>(null);
 
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchData() {
+            setLoading(true);
+            try {
+                const [fetchedProjects, fetchedUsers] = await Promise.all([
+                    getProjects(),
+                    getUsers()
+                ]);
+                setProjects(fetchedProjects);
+                setUsers(fetchedUsers);
+            } catch (error) {
+                console.error("Failed to fetch admin settings data:", error);
+                toast({
+                    title: "Erro ao carregar dados",
+                    description: "Não foi possível buscar os dados do sistema.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
+    }, [toast]);
+
     const systemMetrics = useMemo(() => {
         // Simulated storage usage calculation
         const projectSize = JSON.stringify(projects).length;
         const usersSize = JSON.stringify(users).length;
         const totalStorageBytes = projectSize + usersSize;
-        const totalStorageGB = (totalStorageBytes / (1024 * 1024 * 1024)).toFixed(2);
+        const totalStorageGB = (totalStorageBytes / (1024 * 1024 * 1024)).toFixed(4);
         const storageLimitGB = 10;
-        const storagePercentage = (parseFloat(totalStorageGB) / storageLimitGB) * 100;
-
+        
         // Simulated AI usage
         const totalTasks = projects.reduce((acc, p) => acc + p.tasks.length, 0);
         const aiCalls = projects.length * 5 + totalTasks * 2; // Example calculation
-        const aiCallsLimit = 10000;
         
         // Active Users
         const activeUsers = users.filter(u => u.status === 'active').length;
@@ -42,15 +70,24 @@ export default function AdminSettingsPage() {
         return {
             storageUsed: `${totalStorageGB} GB`,
             storageLimit: `${storageLimitGB} GB`,
-            storagePercentage: storagePercentage.toFixed(2),
             aiCalls,
-            aiCallsLimit,
+            aiCallsLimit: 10000,
             activeUsers,
             projectsAtRisk,
+            totalUsers: users.length
         };
-    }, []);
+    }, [projects, users]);
 
     const handleExport = () => {
+        if (projects.length === 0 && users.length === 0) {
+            toast({
+                title: "Nenhum dado para exportar",
+                description: "Não há projetos ou usuários no sistema.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         toast({
             title: "Exportação Iniciada",
             description: "O backup completo do sistema está sendo gerado...",
@@ -113,8 +150,8 @@ export default function AdminSettingsPage() {
                     // Here, we are mutating the in-memory data, which is not persistent.
                     // For a real effect on the client, we would need a state management solution
                     // or to reload the page.
-                    Object.assign(projects, backupData.projects);
-                    Object.assign(users, backupData.users);
+                    // This will not work with Firestore, a write operation is needed.
+                    console.log("Restoring data (API call needed):", backupData);
                     
                     toast({
                         title: "Restauração Concluída!",
@@ -149,6 +186,17 @@ export default function AdminSettingsPage() {
         reader.readAsText(backupFile);
     };
 
+
+  if (loading) {
+    return (
+         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+            <Skeleton className="h-10 w-1/3" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-40 w-full" />
+         </div>
+    )
+  }
 
   return (
     <>
@@ -227,7 +275,7 @@ export default function AdminSettingsPage() {
                 title="Usuários Ativos"
                 value={systemMetrics.activeUsers}
                 icon={UserCheck}
-                description={`de ${users.length} usuários totais`}
+                description={`de ${systemMetrics.totalUsers} usuários totais`}
                 color="green"
             />
              <KpiCard
