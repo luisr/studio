@@ -27,7 +27,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
             <Logo />
           <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
-          <CardDescription>Bem-vindo de volta! Faça login para acessar seus projetos.</CardDescription>
+          <CardDescription>Bem-vindo! Faça login para acessar seus projetos.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
@@ -35,12 +35,7 @@ export default function LoginPage() {
             <Input id="email" type="email" placeholder="seu@email.com" required />
           </div>
           <div className="grid gap-2">
-            <div className="flex items-center">
-                <Label htmlFor="password">Senha</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
-                    Esqueceu sua senha?
-                </Link>
-            </div>
+            <Label htmlFor="password">Senha</Label>
             <Input id="password" type="password" required />
           </div>
         </CardContent>
@@ -48,12 +43,6 @@ export default function LoginPage() {
           <Link href="/dashboard" className="w-full">
             <Button className="w-full">Entrar</Button>
           </Link>
-          <div className="text-center text-sm">
-            Não tem uma conta?{' '}
-            <Link href="#" className="underline">
-                Cadastre-se
-            </Link>
-          </div>
         </CardFooter>
       </Card>
     </main>
