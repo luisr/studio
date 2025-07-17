@@ -15,12 +15,13 @@ import { useToast } from '@/hooks/use-toast';
 const Logo = () => (
     <div className="flex justify-center mb-4">
         <Image 
-            src="https://placehold.co/150x80.png"
+            src="https://i.imgur.com/u1w5G2j.png"
             alt="Tô de Olho! Logo"
-            width={120}
-            height={64}
+            width={150}
+            height={84}
             className="rounded-lg"
             data-ai-hint="company logo"
+            priority
         />
     </div>
 );

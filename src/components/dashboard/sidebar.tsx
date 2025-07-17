@@ -39,16 +39,13 @@ import Image from "next/image";
 const Logo = () => (
     <div className="flex items-center gap-3">
         <Image
-            src="https://placehold.co/150x80.png"
+            src="https://i.imgur.com/u1w5G2j.png"
             alt="Tô de Olho! Logo"
-            width={80}
-            height={45}
+            width={120}
+            height={67}
             className="rounded-lg"
             data-ai-hint="company logo"
         />
-         <div>
-            <h1 className="text-xl font-bold text-foreground">Tô de Olho!</h1>
-        </div>
     </div>
 );
 
@@ -74,7 +71,7 @@ export function DashboardSidebar({ user, projects }: DashboardSidebarProps) {
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col justify-between">
       <div className="flex flex-col gap-4 overflow-hidden">
-        <Link href="/dashboard" className="pb-2 px-2 border-b">
+        <Link href="/dashboard" className="pb-2 px-2 border-b flex justify-center">
            <Logo />
         </Link>
 
