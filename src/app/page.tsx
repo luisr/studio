@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const Logo = () => (
     <div className="flex justify-center mb-4">
@@ -22,12 +23,17 @@ const Logo = () => (
 
 export default function LoginPage() {
   return (
-    <main className="flex items-center justify-center min-h-screen bg-muted/40">
+    <main className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-            <Logo />
-          <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
-          <CardDescription>Bem-vindo! Faça login para acessar seus projetos.</CardDescription>
+        <CardHeader>
+            <div className='flex justify-between items-start'>
+                <div className="text-center w-full">
+                    <Logo />
+                    <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
+                    <CardDescription>Bem-vindo! Faça login para acessar seus projetos.</CardDescription>
+                </div>
+                <ThemeToggle />
+            </div>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
