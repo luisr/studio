@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 const profileSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
@@ -62,23 +64,41 @@ export function ProfileForm({ user }: ProfileFormProps) {
         }
     });
 
-    const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
-        console.log("Profile data:", data);
-        // Here you would typically call an API to update the user's profile
-        toast({
-            title: "Perfil Atualizado",
-            description: "Suas informações foram salvas com sucesso.",
-        });
+    const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
+        try {
+            const userDocRef = doc(db, 'users', user.id);
+            await updateDoc(userDocRef, data);
+            toast({
+                title: "Perfil Atualizado",
+                description: "Suas informações foram salvas com sucesso.",
+            });
+        } catch(e) {
+            toast({ title: "Erro ao atualizar perfil", variant: 'destructive' })
+        }
     };
     
-    const onPasswordSubmit = (data: z.infer<typeof passwordSchema>) => {
-        console.log("Password data:", data);
-        // Here you would call an API to change the password
-        toast({
-            title: "Senha Alterada",
-            description: "Sua senha foi alterada com sucesso.",
-        });
-        passwordForm.reset();
+    const onPasswordSubmit = async (data: z.infer<typeof passwordSchema>) => {
+        if (data.currentPassword !== user.password) {
+            passwordForm.setError("currentPassword", { message: "A senha atual está incorreta."});
+            return;
+        }
+
+        try {
+            const userDocRef = doc(db, 'users', user.id);
+            await updateDoc(userDocRef, {
+                password: data.newPassword,
+                mustChangePassword: false,
+            });
+            toast({
+                title: "Senha Alterada",
+                description: "Sua senha foi alterada com sucesso.",
+            });
+            passwordForm.reset();
+             // Reload page to clear sensitive state
+            setTimeout(() => window.location.reload(), 1500);
+        } catch(e) {
+            toast({ title: "Erro ao alterar senha", variant: 'destructive' })
+        }
     };
 
   return (
@@ -131,7 +151,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                             <FormItem>
                                 <FormLabel>Email</FormLabel>
                                 <FormControl>
-                                    <Input type="email" placeholder="seu@email.com" {...field} />
+                                    <Input type="email" placeholder="seu@email.com" {...field} disabled />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -152,7 +172,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         />
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4">
-                    <Button type="submit">Salvar Alterações</Button>
+                    <Button type="submit" disabled={user.mustChangePassword}>Salvar Alterações</Button>
                 </CardFooter>
             </form>
             </Form>

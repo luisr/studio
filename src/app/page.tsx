@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
+import { getUsers } from '@/lib/firebase/service';
+import type { User } from '@/lib/types';
 
 const Logo = () => (
     <div className="flex justify-center mb-4">
@@ -31,22 +32,42 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // Hardcoded super admin credentials
-    if (email === 'luis.ribeiro@beachpark.com.br' && password === 'Lilian@2019') {
-        toast({
-            title: "Login bem-sucedido!",
-            description: "Bem-vindo, Super Admin.",
-        });
-        router.push('/dashboard');
-    } else {
-        setError('Credenciais inválidas. Por favor, tente novamente.');
+    try {
+        const allUsers = await getUsers();
+        const foundUser = allUsers.find(
+            (user: User) => user.email === email && user.password === password
+        );
+        
+        if (foundUser) {
+            toast({
+                title: "Login bem-sucedido!",
+                description: `Bem-vindo, ${foundUser.name}.`,
+            });
+            // Store user in session/local storage for persistence
+            sessionStorage.setItem('currentUser', JSON.stringify(foundUser));
+
+            if (foundUser.mustChangePassword) {
+                router.push('/dashboard/profile');
+            } else {
+                router.push('/dashboard');
+            }
+        } else {
+             setError('Credenciais inválidas. Por favor, tente novamente.');
+        }
+    } catch(err) {
+        console.error("Login failed:", err);
+        setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -74,6 +95,7 @@ export default function LoginPage() {
                     required 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
                 />
             </div>
             <div className="grid gap-2">
@@ -84,12 +106,15 @@ export default function LoginPage() {
                     required 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
                 />
             </div>
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full">Entrar</Button>
+                <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Entrando...' : 'Entrar'}
+                </Button>
             </CardFooter>
         </form>
       </Card>

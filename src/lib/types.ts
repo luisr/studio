@@ -22,6 +22,8 @@ export interface User {
   name: string;
   avatar: string;
   email: string;
+  password?: string;
+  mustChangePassword?: boolean;
   phone?: string;
   role?: UserRole; // Global/default role
   status: UserStatus;

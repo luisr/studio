@@ -41,9 +41,10 @@ interface UserFormProps {
   onOpenChange: (isOpen: boolean) => void;
   onSave: (data: Omit<User, 'id'>) => void;
   user: User | null;
+  currentUser: User;
 }
 
-export function UserForm({ isOpen, onOpenChange, onSave, user }: UserFormProps) {
+export function UserForm({ isOpen, onOpenChange, onSave, user, currentUser }: UserFormProps) {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
   });
@@ -80,6 +81,9 @@ export function UserForm({ isOpen, onOpenChange, onSave, user }: UserFormProps) 
   const dialogDescription = user
     ? "Atualize as informações do usuário."
     : "Preencha os dados para criar um novo usuário no sistema.";
+
+  const canEditRole = currentUser?.role === 'Admin';
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -138,22 +142,24 @@ export function UserForm({ isOpen, onOpenChange, onSave, user }: UserFormProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Função Global</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!canEditRole}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione a função do usuário" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
+                        {canEditRole && <SelectItem value="Admin">Admin</SelectItem>}
                         <SelectItem value="Editor">Editor</SelectItem>
                         <SelectItem value="Viewer">Visualizador</SelectItem>
                       </SelectContent>
                     </Select>
+                    {!canEditRole && <p className="text-xs text-muted-foreground mt-1">Apenas um Admin pode alterar a função.</p>}
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
             <DialogFooter className="pt-4">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar

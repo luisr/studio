@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react';
 import type { Project, User } from '@/lib/types';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // In a real app, this would be based on the authenticated user
   const [userProjects, setUserProjects] = useState<Project[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,11 +14,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const [projects, users] = await Promise.all([getProjects(), getUsers()]);
-      setUserProjects(projects);
-      // Simulate getting the current user (e.g., the first user)
-      setCurrentUser(users[0] || null);
-      setLoading(false);
+       try {
+        const userJson = sessionStorage.getItem('currentUser');
+        if (!userJson) {
+          // If no user, maybe redirect to login
+          window.location.href = '/';
+          return;
+        }
+        const user: User = JSON.parse(userJson);
+        setCurrentUser(user);
+
+        const projects = await getProjects();
+        // In a real app, you'd filter projects based on user's team membership.
+        // For now, we'll show all projects to any logged-in user.
+        setUserProjects(projects);
+
+       } catch (error) {
+         console.error("Failed to fetch dashboard data:", error);
+         // Handle error, maybe show a toast
+       } finally {
+        setLoading(false);
+       }
     }
     fetchData();
   }, []);

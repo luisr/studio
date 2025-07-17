@@ -53,7 +53,7 @@ export async function createProject(projectData: Omit<Project, 'id'>): Promise<s
   return docRef.id;
 }
 
-export async function updateProject(projectId: string, data: Partial<Project>): Promise<void> {
+export async function updateProject(projectId: string, data: Partial<Omit<Project, 'id'>>): Promise<void> {
     const projectDocRef = doc(db, 'projects', projectId);
     await updateDoc(projectDocRef, data);
 }
