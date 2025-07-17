@@ -4,7 +4,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Project, User, TeamMember, ProjectRole } from "@/lib/types";
+import type { Project, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,15 +24,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, PlusCircle, Trash2 } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Badge } from "../ui/badge";
+import { useEffect } from "react";
 
 const projectSchema = z.object({
   name: z.string().min(1, "O nome do projeto é obrigatório."),
@@ -41,7 +39,6 @@ const projectSchema = z.object({
   plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
   plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
   plannedBudget: z.coerce.number().min(0, "O orçamento deve ser um valor positivo."),
-  team: z.array(z.any()).optional(), // Team is managed in project settings now
 }).refine(data => data.plannedEndDate >= data.plannedStartDate, {
     message: "A data de fim não pode ser anterior à data de início.",
     path: ["plannedEndDate"],
@@ -57,15 +54,7 @@ interface ProjectFormProps {
   project?: Project | null;
 }
 
-const roleOptions: { value: ProjectRole, label: string }[] = [
-    { value: 'Manager', label: 'Gerente' },
-    { value: 'Editor', label: 'Membro' },
-    { value: 'Viewer', label: 'Visualizador' },
-];
-
 export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = null }: ProjectFormProps) {
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
   });
@@ -81,7 +70,6 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
                 plannedEndDate: new Date(project.plannedEndDate),
                 plannedBudget: project.plannedBudget,
             });
-            setTeam(project.team || []);
         } else { // Create mode
             form.reset({
                 name: "",
@@ -91,7 +79,6 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
                 plannedEndDate: new Date(),
                 plannedBudget: 0,
             });
-            setTeam([]);
         }
     }
   }, [project, isOpen, form]);
@@ -100,14 +87,12 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
     const manager = users.find(u => u.id === data.managerId);
     if (!manager) return;
     
-    // For editing, we might want to preserve the team if it's not managed here
+    // For editing, we pass only the updated fields
     if (project) {
         const payload = {
-            ...project,
             name: data.name,
             description: data.description || "",
             manager: manager,
-            team: team, // Keep existing team on edit
             plannedStartDate: data.plannedStartDate.toISOString(),
             plannedEndDate: data.plannedEndDate.toISOString(),
             plannedBudget: data.plannedBudget,
@@ -127,31 +112,15 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
     }
   };
   
-  const dialogTitle = project ? "Editar Projeto" : "Criar Novo Projeto";
+  const dialogTitle = project ? "Editar Detalhes do Projeto" : "Criar Novo Projeto";
   const dialogDescription = project 
-    ? "Atualize os detalhes e a equipe do seu projeto."
+    ? "Atualize as informações principais do seu projeto."
     : "Preencha os detalhes para criar um novo projeto.";
-
-  const handleAddUserToTeam = (userId: string, role: ProjectRole) => {
-      const userToAdd = users.find(u => u.id === userId);
-      if (userToAdd && !team.some(member => member.user.id === userToAdd.id)) {
-        setTeam(prev => [...prev, { user: userToAdd, role: role }]);
-      }
-  };
-
-  const handleRemoveUserFromTeam = (userId: string) => {
-    setTeam(prev => prev.filter(member => member.user.id !== userId));
-  };
-   const handleRoleChange = (userId: string, newRole: ProjectRole) => {
-        setTeam(prev => prev.map(member => 
-            member.user.id === userId ? { ...member, role: newRole } : member
-        ));
-    };
 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
@@ -272,66 +241,7 @@ export function ProjectForm({ isOpen, onOpenChange, onSave, users, project = nul
               )}
             />
 
-             {project && (
-                <div className="space-y-2">
-                    <FormLabel>Equipe do Projeto</FormLabel>
-                    <div className="space-y-2 rounded-md border p-2 min-h-[80px]">
-                        {team.map(member => (
-                            <div key={member.user.id} className="flex items-center justify-between p-1">
-                                <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage src={member.user.avatar} alt={member.user.name} />
-                                    <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span>{member.user.name}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Select 
-                                        value={member.role} 
-                                        onValueChange={(v) => handleRoleChange(member.user.id, v as ProjectRole)}
-                                        disabled={member.role === 'Manager'}
-                                    >
-                                        <SelectTrigger className="w-[150px]">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                        {roleOptions.map(opt => (
-                                            <SelectItem 
-                                                key={opt.value} 
-                                                value={opt.value} 
-                                                disabled={opt.value === 'Manager'}
-                                            >
-                                                {opt.label}
-                                            </SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {member.role !== 'Manager' && (
-                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveUserFromTeam(member.user.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                     <div className="flex gap-2">
-                        <Select onValueChange={(userId) => handleAddUserToTeam(userId, 'Editor')}>
-                            <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Adicionar membro à equipe..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {users.filter(u => !team.some(m => m.user.id === u.id)).map((user) => (
-                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-            )}
-
-
-            <DialogFooter>
+            <DialogFooter className="pt-4">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>

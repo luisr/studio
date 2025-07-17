@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, CustomFieldDefinition, AlertRule, AlertMetric, AlertCondition } from "@/lib/types";
+import type { ProjectConfiguration, StatusDefinition, CustomKpiDefinition, CustomChartDefinition, CustomFieldDefinition, AlertRule, AlertMetric, AlertCondition, TeamMember, User, ProjectRole } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { Separator } from "../ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 const taskFieldsForKpi: { value: keyof CustomKpiDefinition['field']; label: string }[] = [
     { value: 'plannedHours', label: 'Horas Planejadas' },
@@ -76,18 +77,28 @@ const alertConditions: { value: AlertCondition, label: string }[] = [
     { value: 'exceeds_percentage', label: 'excede' },
 ];
 
+const roleOptions: { value: ProjectRole, label: string }[] = [
+    { value: 'Manager', label: 'Gerente' },
+    { value: 'Editor', label: 'Membro' },
+    { value: 'Viewer', label: 'Visualizador' },
+];
+
 
 interface ProjectSettingsModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   projectConfiguration: ProjectConfiguration;
-  onSave: (newConfig: ProjectConfiguration) => void;
+  team: TeamMember[];
+  allUsers: User[];
+  onSave: (newConfig: ProjectConfiguration, newTeam: TeamMember[]) => void;
 }
 
 export function ProjectSettingsModal({
   isOpen,
   onOpenChange,
   projectConfiguration,
+  team,
+  allUsers,
   onSave,
 }: ProjectSettingsModalProps) {
   const [statuses, setStatuses] = useState<StatusDefinition[]>([]);
@@ -96,6 +107,7 @@ export function ProjectSettingsModal({
   const [customCharts, setCustomCharts] = useState<CustomChartDefinition[]>([]);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
+  const [currentTeam, setCurrentTeam] = useState<TeamMember[]>([]);
 
 
   useEffect(() => {
@@ -106,11 +118,13 @@ export function ProjectSettingsModal({
       setCustomCharts(JSON.parse(JSON.stringify(projectConfiguration.customCharts || [])));
       setCustomFields(JSON.parse(JSON.stringify(projectConfiguration.customFieldDefinitions || [])));
       setAlertRules(JSON.parse(JSON.stringify(projectConfiguration.alertRules || [])));
+      setCurrentTeam(JSON.parse(JSON.stringify(team || [])));
     }
-  }, [isOpen, projectConfiguration]);
+  }, [isOpen, projectConfiguration, team]);
 
   const handleSave = () => {
-    onSave({ ...projectConfiguration, statuses, visibleKpis, customKpis, customCharts, customFieldDefinitions: customFields, alertRules });
+    const newConfig = { ...projectConfiguration, statuses, visibleKpis, customKpis, customCharts, customFieldDefinitions: customFields, alertRules };
+    onSave(newConfig, currentTeam);
     onOpenChange(false);
   };
 
@@ -266,6 +280,23 @@ export function ProjectSettingsModal({
      }))
   };
 
+  const handleAddUserToTeam = (userId: string) => {
+      const userToAdd = allUsers.find(u => u.id === userId);
+      if (userToAdd && !currentTeam.some(member => member.user.id === userToAdd.id)) {
+        setCurrentTeam(prev => [...prev, { user: userToAdd, role: 'Viewer' }]);
+      }
+  };
+
+  const handleRemoveUserFromTeam = (userId: string) => {
+    setCurrentTeam(prev => prev.filter(member => member.user.id !== userId));
+  };
+
+  const handleRoleChange = (userId: string, newRole: ProjectRole) => {
+      setCurrentTeam(prev => prev.map(member => 
+          member.user.id === userId ? { ...member, role: newRole } : member
+      ));
+  };
+
   const allCategoricalFields = [
     ...chartCategoricalFields,
     ...(customFields || []).filter(f => f.type === 'text').map(f => ({ value: f.id, label: f.name }))
@@ -295,6 +326,7 @@ export function ProjectSettingsModal({
         <Tabs defaultValue="general" className="flex-grow overflow-hidden flex flex-col">
           <TabsList>
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="team">Equipe</TabsTrigger>
             <TabsTrigger value="kpis">KPIs</TabsTrigger>
             <TabsTrigger value="charts">Gráficos</TabsTrigger>
             <TabsTrigger value="alerts">Alertas</TabsTrigger>
@@ -370,6 +402,66 @@ export function ProjectSettingsModal({
                          <Plus className="mr-2 h-4 w-4" />
                          Adicionar Status
                      </Button>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="team" className="mt-0 space-y-6">
+                <div className="space-y-2">
+                    <div className="space-y-2 rounded-md border p-2 min-h-[80px]">
+                        {currentTeam.map(member => (
+                            <div key={member.user.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md">
+                                <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={member.user.avatar} alt={member.user.name} />
+                                    <AvatarFallback>{member.user.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-medium">{member.user.name}</p>
+                                    <p className="text-xs text-muted-foreground">{member.user.email}</p>
+                                </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select 
+                                        value={member.role} 
+                                        onValueChange={(v) => handleRoleChange(member.user.id, v as ProjectRole)}
+                                        disabled={member.role === 'Manager'}
+                                    >
+                                        <SelectTrigger className="w-[150px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                        {roleOptions.map(opt => (
+                                            <SelectItem 
+                                                key={opt.value} 
+                                                value={opt.value} 
+                                                disabled={opt.value === 'Manager'}
+                                            >
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {member.role !== 'Manager' && (
+                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveUserFromTeam(member.user.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                     <div className="flex gap-2">
+                        <Select onValueChange={(userId) => handleAddUserToTeam(userId)}>
+                            <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Adicionar membro à equipe..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allUsers.filter(u => !currentTeam.some(m => m.user.id === u.id)).map((user) => (
+                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </TabsContent>
 

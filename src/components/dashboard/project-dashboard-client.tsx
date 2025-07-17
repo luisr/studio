@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, ChangeEvent } from "react";
-import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment, ProjectRole, ActiveAlert } from "@/lib/types";
+import type { Project, Task, User, CustomFieldDefinition, ProjectConfiguration, Attachment, ProjectRole, ActiveAlert, TeamMember } from "@/lib/types";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { ProjectHeader } from "@/components/dashboard/project-header";
 import { TasksTable } from "@/components/dashboard/tasks-table";
@@ -202,15 +202,20 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     updateProjectAndPersist(updatedProject);
   }, [project, updateProjectAndPersist]);
 
-  const handleProjectUpdate = (updatedProjectData: Project) => {
-    updateProjectAndPersist(updatedProjectData);
+  const handleProjectUpdate = (updatedProjectData: Omit<Project, 'id'>) => {
+     const updatedProject = {
+      ...project,
+      ...updatedProjectData,
+    };
+    updateProjectAndPersist(updatedProject);
     setIsProjectFormOpen(false);
   }
   
-  const handleConfigUpdate = (newConfig: ProjectConfiguration) => {
+  const handleConfigUpdate = (newConfig: ProjectConfiguration, newTeam?: TeamMember[]) => {
     const updatedProject = {
       ...project,
-      configuration: newConfig
+      configuration: newConfig,
+      team: newTeam || project.team,
     };
     updateProjectAndPersist(updatedProject);
     setIsSettingsOpen(false);
@@ -842,6 +847,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
         projectConfiguration={project.configuration}
+        team={project.team}
+        allUsers={allUsers}
         onSave={handleConfigUpdate}
       />
       <ProjectGalleryModal
