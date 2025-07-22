@@ -83,7 +83,7 @@ const calculateTotalProgress = (tasks: Task[]): number => {
         // O progresso da tarefa pai é a média do progresso ponderado das filhas.
         const parentProgress = subTasksResult.progress / subTasksResult.totalHours;
         return { progress: parentProgress * subTasksResult.totalHours, totalHours: subTasksResult.totalHours };
-    }
+    };
 
     let totalWeightedProgress = 0;
     let totalHours = 0;
@@ -98,7 +98,7 @@ const calculateTotalProgress = (tasks: Task[]): number => {
 
     // Retorna o progresso geral do projeto (0 a 100)
     return Math.round(totalWeightedProgress / totalHours);
-}
+};
 
 
 const iconMap: Record<string, LucideIcon> = {
@@ -207,7 +207,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     };
     updateProjectAndPersist(updatedProject);
     setIsProjectFormOpen(false);
-  }
+  };
   
   const handleConfigUpdate = (newConfig: ProjectConfiguration, newTeam?: TeamMember[]) => {
     const updatedProject = {
@@ -350,7 +350,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const handleCreateTask = () => {
     setEditingTask(null);
     setIsTaskFormOpen(true);
-  }
+  };
 
   const handleDeleteTask = (taskId: string) => {
     let flatTasks = [...project.tasks];
@@ -365,7 +365,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
                 getChildIds(t.id);
             }
         });
-    }
+    };
     getChildIds(taskId);
     
     let newTasks = flatTasks.filter(t => !childIdsToDelete.has(t.id));
@@ -630,7 +630,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       tasks: allTasks,
       configuration: newConfig,
       actualCost: newActualCost
-    }
+    };
 
     updateProjectAndPersist(updatedProject);
     
@@ -714,6 +714,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       .map(([key, kpi]) => ({ id: key, ...kpi }));
 
     return [...visibleDefaultKpis, ...customKpisCalculated];
+  }, [project]);
 
   if (!isClient) {
     return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
