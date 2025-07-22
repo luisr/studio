@@ -5,7 +5,7 @@ import type { Project, Task, AlertRule, ActiveAlert } from './types';
 export function checkAlerts(project: Project): ActiveAlert[] {
   const { tasks, configuration, plannedBudget, actualCost } = project;
   const alertRules = configuration.alertRules || [];
-  const triggeredAlerts: Active-Alert[] = [];
+  const triggeredAlerts: ActiveAlert[] = [];
   const today = startOfToday();
 
   // Helper to prevent duplicate alert messages
