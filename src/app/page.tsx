@@ -12,7 +12,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { getUsers } from '@/lib/supabase/service';
 import type { User } from '@/lib/types';
-import { BrainCircuit, Eye, EyeOff } from 'lucide-react';
+import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AuthManager } from '@/lib/auth';
+import { APP_NAME } from '@/lib/constants';
 
 const Logo = () => (
     <div className="flex justify-center items-center mb-4 text-primary">
@@ -25,14 +27,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -46,8 +46,8 @@ export default function LoginPage() {
                 title: "Login bem-sucedido!",
                 description: `Bem-vindo, ${foundUser.name}.`,
             });
-            // Store user in session/local storage for persistence
-            sessionStorage.setItem('currentUser', JSON.stringify(foundUser));
+            
+            AuthManager.setCurrentUser(foundUser);
 
             if (foundUser.mustChangePassword) {
                 router.push('/dashboard/profile');
@@ -55,11 +55,19 @@ export default function LoginPage() {
                 router.push('/dashboard');
             }
         } else {
-             setError('Credenciais inválidas. Por favor, tente novamente.');
+            toast({
+                title: "Erro de Login",
+                description: "Credenciais inválidas. Por favor, tente novamente.",
+                variant: "destructive"
+            });
         }
     } catch(err) {
         console.error("Login failed:", err);
-        setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
+        toast({
+            title: "Erro de Login",
+            description: "Ocorreu um erro ao tentar fazer login. Tente novamente.",
+            variant: "destructive"
+        });
     } finally {
         setLoading(false);
     }
@@ -72,7 +80,7 @@ export default function LoginPage() {
             <div className='flex justify-between items-start'>
                 <div className="text-center w-full">
                     <Logo />
-                    <CardTitle className="text-2xl font-bold">Tô de Olho!</CardTitle>
+                    <CardTitle className="text-2xl font-bold">{APP_NAME}</CardTitle>
                     <CardDescription>Bem-vindo! Faça login para acessar seus projetos.</CardDescription>
                 </div>
                 <ThemeToggle />
@@ -117,11 +125,17 @@ export default function LoginPage() {
                     </Button>
                 </div>
             </div>
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
                 <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Entrando...' : 'Entrar'}
+                    {loading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Entrando...
+                        </>
+                    ) : (
+                        'Entrar'
+                    )}
                 </Button>
             </CardFooter>
         </form>

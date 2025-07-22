@@ -1,6 +1,7 @@
 // src/lib/supabase/service.ts
 import { supabase } from './config';
 import type { Project, User } from '@/lib/types';
+import { DEFAULT_PASSWORD, DEFAULT_AVATAR } from '../constants';
 
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase
@@ -53,9 +54,9 @@ export async function getUsers(): Promise<User[]> {
     id: 'super-admin-001',
     name: 'Luis Ribeiro',
     email: 'luis.ribeiro@beachpark.com.br',
-    password: 'Lilian@2019',
+    password: DEFAULT_PASSWORD,
     role: 'Admin',
-    avatar: 'https://placehold.co/100x100.png',
+    avatar: DEFAULT_AVATAR,
     status: 'active',
     mustChangePassword: false,
   };

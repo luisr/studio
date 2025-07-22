@@ -15,6 +15,7 @@ import { summarizeAllProjects, type SummarizeAllProjectsOutput } from '@/ai/flow
 import { getProjects, getUsers, createProject } from '@/lib/supabase/service';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 
 const calculateProgress = (project: Project): number => {
@@ -32,8 +33,8 @@ export default function DashboardProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -44,11 +45,6 @@ export default function DashboardProjectsPage() {
       ]);
       setProjects(fetchedProjects);
       setUsers(fetchedUsers);
-      // Em um app real, este seria o usuário autenticado.
-      const userJson = sessionStorage.getItem('currentUser');
-      if (userJson) {
-        setCurrentUser(JSON.parse(userJson));
-      }
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({

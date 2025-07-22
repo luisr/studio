@@ -33,11 +33,9 @@ interface TasksTableProps {
   onBulkAction: (action: BulkAction, taskIds: Set<string>, newParentId?: string | null) => void;
 }
 
-const priorityClasses: { [key: string]: string } = {
-  'Alta': 'bg-red-500/20 text-red-700',
-  'Média': 'bg-yellow-500/20 text-yellow-700',
-  'Baixa': 'bg-blue-500/20 text-blue-700',
-};
+import { PRIORITY_CLASSES } from '@/lib/constants';
+import { formatEffort } from '@/lib/utils/effort';
+import { formatDate } from '@/lib/utils/date';
 
 const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   let ids: string[] = [];
@@ -49,21 +47,6 @@ const getAllTaskIdsWithSubtasks = (tasks: Task[]): string[] => {
   }
   return ids;
 };
-
-const formatEffort = (hours: number): string => {
-    if (typeof hours !== 'number' || isNaN(hours)) return '-';
-
-    const months = hours / 160;
-    if (months >= 1 && months % 1 === 0) return `${months} mes${months > 1 ? 'es' : ''}`;
-
-    const weeks = hours / 40;
-    if (weeks >= 1 && weeks % 1 === 0) return `${weeks} sem`;
-
-    const days = hours / 8;
-    if (days >= 1 && days % 1 === 0) return `${days}d`;
-    
-    return `${hours}h`;
-}
 
 type ColumnVisibility = {
   [key: string]: boolean;
@@ -216,18 +199,6 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
       return 'N/A';
   }
   
-  const formatDate = (dateString?: string) => {
-    if(!dateString) return '-';
-    // Handle potential invalid date strings from custom fields
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  }
-
   const renderTask = (task: Task, level: number = 0) => {
     const isExpanded = expandedRows.has(task.id);
     const hasSubtasks = task.subTasks && task.subTasks.length > 0;
@@ -292,7 +263,7 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
             </Badge>
           </TableCell>}
           {columnVisibility.priority && <TableCell>
-            <Badge variant="outline" className={cn("font-normal", priorityClasses[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
+            <Badge variant="outline" className={cn("font-normal", PRIORITY_CLASSES[task.priority || 'Média'])}>{task.priority || 'Média'}</Badge>
           </TableCell>}
           {columnVisibility.progress && (
             <TableCell>

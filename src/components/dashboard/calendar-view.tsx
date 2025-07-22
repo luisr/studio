@@ -10,17 +10,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { eachDayOfInterval, format, startOfDay, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ViewActions } from './view-actions';
+import { PRIORITY_CLASSES } from '@/lib/constants';
 
 interface CalendarViewProps {
   project: Project;
   onEditTask: (task: Task) => void;
 }
-
-const priorityClasses: { [key: string]: string } = {
-  'Alta': 'border-red-500/50 bg-red-500/10 text-red-700',
-  'Média': 'border-yellow-500/50 bg-yellow-500/10 text-yellow-700',
-  'Baixa': 'border-blue-500/50 bg-blue-500/10 text-blue-700',
-};
 
 export function CalendarView({ project, onEditTask }: CalendarViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -119,7 +114,7 @@ export function CalendarView({ project, onEditTask }: CalendarViewProps) {
                             <div key={task.id} className="p-3 border rounded-lg shadow-sm cursor-pointer hover:bg-muted/50" onClick={() => onEditTask(task)}>
                                 <div className="flex justify-between items-start">
                                     <p className="font-semibold text-sm">{task.name}</p>
-                                    <Badge variant="outline" className={priorityClasses[task.priority || 'Média']}>
+                                    <Badge variant="outline" className={PRIORITY_CLASSES[task.priority || 'Média']}>
                                         {task.priority || 'Média'}
                                     </Badge>
                                 </div>

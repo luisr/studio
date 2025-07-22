@@ -31,18 +31,7 @@ import { format } from "date-fns";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useEffect } from "react";
-
-const projectSchema = z.object({
-  name: z.string().min(1, "O nome do projeto é obrigatório."),
-  description: z.string().optional(),
-  managerId: z.string().min(1, "É necessário selecionar um gerente."),
-  plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
-  plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
-  plannedBudget: z.coerce.number().min(0, "O orçamento deve ser um valor positivo."),
-}).refine(data => data.plannedEndDate >= data.plannedStartDate, {
-    message: "A data de fim não pode ser anterior à data de início.",
-    path: ["plannedEndDate"],
-});
+import { projectSchema } from '@/lib/validation';
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 

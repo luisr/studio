@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { formatNumber } from "@/lib/utils/currency";
 
 interface KpiCardProps {
   title: string;
@@ -23,18 +23,10 @@ const colorClasses = {
 
 
 export function KpiCard({ title, value, icon: Icon, description, className, color = 'blue' }: KpiCardProps) {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const formatValue = (val: string | number) => {
     if (typeof val === 'number') {
-      if (!isClient) {
-        return val; // Render raw number on server
-      }
-      return new Intl.NumberFormat('pt-BR').format(val);
+      return formatNumber(val);
     }
     return val;
   };

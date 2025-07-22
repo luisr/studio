@@ -14,17 +14,13 @@ import { format } from 'date-fns';
 import { getProjects } from '@/lib/supabase/service';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PRIORITY_CLASSES } from '@/lib/constants';
+import { formatDate } from '@/lib/utils/date';
 
 interface AggregatedTask extends Task {
   projectName: string;
   projectId: string;
 }
-
-const priorityClasses: { [key: string]: string } = {
-  'Alta': 'bg-red-500/20 text-red-700',
-  'Média': 'bg-yellow-500/20 text-yellow-700',
-  'Baixa': 'bg-blue-500/20 text-blue-700',
-};
 
 export default function AllTasksPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,12 +79,6 @@ export default function AllTasksPage() {
     });
   }, [allTasks, searchTerm, projectFilter, assigneeFilter]);
   
-  const formatDate = (dateString: string) => {
-    if(!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return format(date, 'dd/MM/yyyy');
-  }
 
   if (loading) {
     return (
@@ -192,7 +182,7 @@ export default function AllTasksPage() {
                       <Badge variant="outline">{task.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={priorityClasses[task.priority || 'Média']}>
+                      <Badge variant="outline" className={PRIORITY_CLASSES[task.priority || 'Média']}>
                         {task.priority || 'Média'}
                       </Badge>
                     </TableCell>

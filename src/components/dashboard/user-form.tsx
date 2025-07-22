@@ -26,14 +26,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { createUser, updateUser } from "@/lib/supabase/service";
-
-const userSchema = z.object({
-  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
-  email: z.string().email("Por favor, insira um e-mail válido."),
-  avatar: z.string().url("URL do avatar inválida.").optional(),
-  role: z.enum(["Admin", "Editor", "Viewer"]),
-});
+import { userSchema } from '@/lib/validation';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 
 type UserFormValues = z.infer<typeof userSchema>;
 
@@ -63,7 +57,7 @@ export function UserForm({ isOpen, onOpenChange, onSave, user, currentUser }: Us
         form.reset({
           name: "",
           email: "",
-          avatar: "https://placehold.co/100x100.png",
+          avatar: DEFAULT_AVATAR,
           role: 'Viewer',
         });
       }

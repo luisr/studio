@@ -21,22 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { updateUser } from "@/lib/supabase/service";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-
-const profileSchema = z.object({
-  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
-  avatar: z.string().url("URL do avatar inválida.").optional(),
-  email: z.string().email("Por favor, insira um e-mail válido."),
-  phone: z.string().optional(),
-});
-
-const passwordSchema = z.object({
-    currentPassword: z.string().min(1, "A senha atual é obrigatória."),
-    newPassword: z.string().min(8, "A nova senha deve ter pelo menos 8 caracteres."),
-    confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-    message: "As senhas não coincidem.",
-    path: ["confirmPassword"],
-});
+import { profileSchema, passwordSchema } from '@/lib/validation';
 
 
 interface ProfileFormProps {

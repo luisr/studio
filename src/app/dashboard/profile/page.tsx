@@ -8,20 +8,10 @@ import type { User } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ProfilePage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // In a real app, you'd get this from a more secure context (like HttpOnly cookies or a session),
-    // but for this simulation, sessionStorage is sufficient.
-    const userJson = sessionStorage.getItem('currentUser');
-    if (userJson) {
-      setCurrentUser(JSON.parse(userJson));
-    }
-    setLoading(false);
-  }, []);
+  const { user: currentUser, loading } = useAuth();
 
   if (loading) {
      return (

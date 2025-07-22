@@ -2,10 +2,11 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider";
+import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: 'Tô de Olho!',
-  description: 'Gerenciamento de Projetos com Inteligência Preditiva e Transparência',
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
 };
 
 export default function RootLayout({

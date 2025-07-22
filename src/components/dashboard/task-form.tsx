@@ -48,53 +48,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { Badge } from "../ui/badge";
 import { Slider } from "../ui/slider";
 
-type EffortUnit = 'hours' | 'days' | 'weeks' | 'months';
-
-const conversionFactors: Record<EffortUnit, number> = {
-  hours: 1,
-  days: 8,
-  weeks: 40,
-  months: 160, 
-};
-
-const attachmentSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  url: z.string(),
-  type: z.string(),
-  taskId: z.string(),
-  taskName: z.string(),
-  timestamp: z.string(),
-});
-
-const taskSchema = z.object({
-  name: z.string().min(1, { message: "O nome da tarefa é obrigatório." }),
-  assignee: z.string().min(1, { message: "Selecione um responsável." }),
-  status: z.string().min(1, { message: "Selecione um status." }),
-  priority: z.enum(["Baixa", "Média", "Alta"]),
-  progress: z.number().min(0).max(100),
-  plannedStartDate: z.date({ required_error: "A data de início é obrigatória." }),
-  plannedEndDate: z.date({ required_error: "A data de fim é obrigatória." }),
-  
-  // These fields are for the form UI
-  plannedEffort: z.coerce.number().min(0),
-  plannedEffortUnit: z.enum(['hours', 'days', 'weeks', 'months']),
-  actualEffort: z.coerce.number().min(0),
-  actualEffortUnit: z.enum(['hours', 'days', 'weeks', 'months']),
-  
-  // These will be calculated and passed on save
-  plannedHours: z.coerce.number().min(0, { message: "As horas planejadas devem ser positivas." }),
-  actualHours: z.coerce.number().min(0, { message: "As horas reais devem ser positivas." }),
-
-  parentId: z.string().nullable().optional(),
-  isMilestone: z.boolean().optional(),
-  dependencies: z.array(z.string()).optional(),
-  customFields: z.record(z.string(), z.any()).optional(),
-  attachments: z.array(attachmentSchema).optional(),
-}).refine(data => data.plannedEndDate >= data.plannedStartDate, {
-    message: "A data de fim não pode ser anterior à data de início.",
-    path: ["plannedEndDate"],
-});
+import { taskSchema } from '@/lib/validation';
+import { getBestEffortUnit, convertEffortToHours, type EffortUnit } from '@/lib/utils/effort';
+import { fileToDataUrl } from '@/lib/utils/file';
+import { formatDate } from '@/lib/utils/date';
 
 type TaskFormValues = z.infer<typeof taskSchema>;
 
@@ -105,23 +62,6 @@ interface TaskFormProps {
   task: Task | null;
   project: Project;
 }
-
-const getBestEffortUnit = (hours: number): { value: number, unit: EffortUnit } => {
-    if (hours >= 160) return { value: hours / 160, unit: 'months' };
-    if (hours >= 40) return { value: hours / 40, unit: 'weeks' };
-    if (hours >= 8) return { value: hours / 8, unit: 'days' };
-    return { value: hours, unit: 'hours' };
-}
-
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
 
 export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFormProps) {
   const { team: users, tasks: allTasks, configuration } = project;
@@ -263,8 +203,8 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
     if (!selectedUser) return;
 
     // Convert effort from UI to hours for storage
-    const plannedHours = data.plannedEffort * conversionFactors[data.plannedEffortUnit];
-    const actualHours = data.actualEffort * conversionFactors[data.actualEffortUnit];
+    const plannedHours = convertEffortToHours(data.plannedEffort, data.plannedEffortUnit);
+    const actualHours = convertEffortToHours(data.actualEffort, data.actualEffortUnit);
     
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { plannedEffort, plannedEffortUnit, actualEffort, actualEffortUnit, ...dataToSave } = data;
@@ -342,7 +282,7 @@ export function TaskForm({ isOpen, onOpenChange, onSave, task, project }: TaskFo
   const formatChangeLogValue = (field: string, value: string): string => {
       if (field.toLowerCase().includes('date')) {
           try {
-              return format(new Date(value), 'dd/MM/yyyy');
+              return formatDate(value);
           } catch {
               return value;
           }

@@ -8,23 +8,11 @@ import { Badge } from "../ui/badge";
 import { UserCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { ViewActions } from "./view-actions";
+import { PRIORITY_CLASSES, PRIORITY_ORDER } from '@/lib/constants';
 
 interface BacklogViewProps {
   project: Project;
 }
-
-const priorityClasses: { [key: string]: string } = {
-  'Alta': 'border-red-500/50 bg-red-500/10 text-red-700',
-  'Média': 'border-yellow-500/50 bg-yellow-500/10 text-yellow-700',
-  'Baixa': 'border-blue-500/50 bg-blue-500/10 text-blue-700',
-};
-
-const priorityOrder = {
-  'Alta': 1,
-  'Média': 2,
-  'Baixa': 3,
-};
-
 
 export function BacklogView({ project }: BacklogViewProps) {
   const printableRef = useRef<HTMLDivElement>(null);
@@ -33,8 +21,8 @@ export function BacklogView({ project }: BacklogViewProps) {
     return project.tasks
       .filter(task => task.status === 'A Fazer')
       .sort((a, b) => {
-          const priorityA = priorityOrder[a.priority || 'Média'];
-          const priorityB = priorityOrder[b.priority || 'Média'];
+          const priorityA = PRIORITY_ORDER[a.priority || 'Média'];
+          const priorityB = PRIORITY_ORDER[b.priority || 'Média'];
           return priorityA - priorityB;
       });
   }, [project.tasks]);
@@ -64,7 +52,7 @@ export function BacklogView({ project }: BacklogViewProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Badge variant="outline" className={priorityClasses[task.priority || 'Média']}>
+                    <Badge variant="outline" className={PRIORITY_CLASSES[task.priority || 'Média']}>
                       {task.priority || 'Média'}
                     </Badge>
                      <TooltipProvider>

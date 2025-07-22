@@ -28,6 +28,8 @@ import { CalendarView } from "./calendar-view";
 import { ProjectForm } from "./project-form";
 import { getUsers, updateProject } from "@/lib/supabase/service";
 import { checkAlerts } from "@/lib/alert-checker";
+import { useAuth } from '@/hooks/use-auth';
+import { formatCurrency } from '@/lib/utils/currency';
 
 
 const nestTasks = (tasks: Task[]): Task[] => {
@@ -127,21 +129,17 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   }, [project.tasks]);
 
   // --- Start of Permissions Logic ---
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<ProjectRole | null>(null);
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
-    // In a real app, you would get the current user from an auth context.
     getUsers().then(setAllUsers);
-    const userJson = sessionStorage.getItem('currentUser');
-    if (userJson) {
-      const user: User = JSON.parse(userJson);
-      setCurrentUser(user);
-      const member = project.team.find(m => m.user.id === user.id);
+    if (currentUser) {
+      const member = project.team.find(m => m.user.id === currentUser.id);
       setCurrentUserRole(member ? member.role : null);
     }
-  }, [project.team]);
+  }, [project.team, currentUser]);
 
   const canEditProject = currentUserRole === 'Manager';
   const canEditTasks = currentUserRole === 'Manager' || currentUserRole === 'Editor';
@@ -658,11 +656,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     });
   };
 
-  const formatCurrency = useCallback((value: number) => {
-    if(!isClient) return 'R$ ...';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  }, [isClient]);
-  
   const allKpis = useMemo(() => {
     const { tasks, configuration, plannedBudget, actualCost } = project;
     
@@ -721,7 +714,6 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       .map(([key, kpi]) => ({ id: key, ...kpi }));
 
     return [...visibleDefaultKpis, ...customKpisCalculated];
-  }, [project, formatCurrency]);
 
   if (!isClient) {
     return <div className="flex items-center justify-center h-screen"><p>Carregando dashboard...</p></div>; 
